@@ -84,8 +84,8 @@ void exploreGroup(int p, int n, Polynomial formPoly = Polynomial())
 
 int main()
 {
-    Polynomial a = Polynomial({1, 4, 6, 4, 2}, 11);
-    isIrreducible(a, 11);
-    std::cout << a << '\n';
-    system("python3 1.py");
+    Polynomial a = Polynomial({11, 4, 6, 5, 2}, 11);
+    Polynomial b = Polynomial();
+    Polynomial c = a % b;
+    std::cout << c;
 }

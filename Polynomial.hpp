@@ -118,7 +118,7 @@ class Polynomial {
             std::reverse(divident.begin(), divident.end());
             std::reverse(divisor.begin(), divisor.end());
             std::vector<int> remainder = divident;
-            if (divisor.empty()) {
+            if (divisor.empty() || (divisor.size() == 1 && divisor[0] == 0)) {
                 throw std::invalid_argument("Division by zero polynomial");
             }
             while (remainder.size() >= divisor.size()) {
