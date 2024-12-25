@@ -98,12 +98,12 @@ class Polynomial {
 
         //Перегрузка оператора умножения
         Polynomial operator * (const Polynomial &cofactor) const {
-            size_t compDegree = coefficients.size() + cofactor.coefficients.size() - 2;
+            size_t compDegree = coefficients.size() + cofactor.coefficients.size() - 1;
             std::vector<int> comp(compDegree, 0);
 
             for (size_t i = 0; i < coefficients.size(); ++i) {
                 for (size_t j = 0; j < cofactor.coefficients.size(); ++j) {
-                    comp[i + j] += coefficients[i] * cofactor.coefficients[j];
+                    comp[i + j] += coefficients[coefficients.size() - i - 1] * cofactor.coefficients[ cofactor.coefficients.size() - j - 1];
                 }
             }
             
@@ -140,7 +140,7 @@ class Polynomial {
         }
 
         //Перегрузка вывода полинома
-        friend std::ostream& operator << (std::ostream& os, Polynomial& poly1) {
+        friend std::ostream& operator << (std::ostream& os, Polynomial poly1){
             const std::string degreeSymbols[] = {"", "", "²", "³", "⁴", "⁵", "⁶", "⁷", "⁸", "⁹"};
             Polynomial poly = poly1;
             std::reverse(poly.coefficients.begin(), poly.coefficients.end());
