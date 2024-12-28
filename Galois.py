@@ -115,9 +115,16 @@ class Galois_field:
                 
                 remainder = Poly(polynomial,x, domain='ZZ').div(Poly(divisor, x, domain='ZZ'))[1]
                 remainder_corrected = Poly([coeff % self.p for coeff in remainder.all_coeffs()], x)
+        #print(Poly(Polynomial_corrected, x))
+        if Polynomial_corrected in self.Generation_of_irreducible_polynomials() == False:
+            return("It is an reducible polynomial 1")
+        for i in range(self.p):
+            if ((Polynomial_corrected.subs({x: i})) % self.p + self.p) % self.p == 0:
+                return("It is an reducible polynomial 2")
         if Poly(polynomial, x, modulus = self.p) and self.n == Poly(polynomial).total_degree() and remainder_corrected != 0:
             self.irreducible_polynomial = polynomial.as_expr()
-        else: return(sympy.factor(polynomial), "It is an reducible polynomial") 
+            return "The polynomial is irreducible, stored in the field."
+        else: return("It is an reducible polynomial 3") 
     
     def Generation_of_irreducible_polynomials(self):
         Irreducible_polynomials = Galois_field(self.p, self.n + 1)
@@ -140,23 +147,36 @@ class Galois_field:
 
             if is_irreducible:
                 irreducible_polynomials.append(polynomial.as_expr())
+        for j in range(len(irreducible_polynomials)):
+            for i in range(self.p):
+                if ((sympy.sympify(str(irreducible_polynomials[j])).subs({x: i})) % self.p + self.p) % self.p == 0:
+                    irreducible_polynomials[j] = -1
 
+        irreducible_polynomials = set(irreducible_polynomials)
+        irreducible_polynomials.remove(-1)
+        irreducible_polynomials = list(irreducible_polynomials)
         return irreducible_polynomials
     
-    def Addition_or_multiplication_of_polynomials(self, mode: int, polynomials: list):
+    def Addition_or_multiplication_of_polynomials(self, mode: int, polynomials: str):   
+        polynomials = polynomials.split("/")
         result = sympy.sympify(polynomials[0])
         match mode:
-            case 0:
+            case 0: # Сложение
                 for i in range(1, len(polynomials)):
                     result += sympy.sympify(polynomials[i])
+                    while Poly(result, x).total_degree() >= self.n:
+                        result = (Poly(result, x).div(Poly(self.irreducible_polynomial, x)))[1]
+                        result = (result.clear_denoms()[1]).as_expr()
             case 1: # Умножение
                 for i in range(1, len(polynomials)):
                     result = result * sympy.sympify(polynomials[i])
                 #print(result)
                 while Poly(result, x).total_degree() >= self.n:
-                    result = (Poly(result, x).div(Poly(self.irreducible_polynomial, x)))[1].as_expr()
-        result = Poly(result, x).set_modulus(self.p).as_expr()
-        return result
+                    result = (Poly(result, x).div(Poly(self.irreducible_polynomial, x)))[1]
+                    result = (result.clear_denoms()[1]).as_expr()
+        result = Poly(result, x).set_modulus(self.p)
+        Result_corrected = Poly([coeff % self.p for coeff in result.all_coeffs()], x, domain='ZZ')
+        return Result_corrected.as_expr()
 
     def Finding_the_generators_of_the_field(self):
         Multiplicative_group = set(self.Galois_field)
@@ -190,10 +210,10 @@ class Galois_field:
     def Decomposition_by_degrees_of_the_selected_generator(self, generative: str):
         generative = sympy.sympify(generative)
         q = (self.p ** self.n) - 1
-        generaive_check = Poly(Pow(generative, q), x).div(Poly(self.irreducible_polynomial, x))[1]
-        generaive_check = (generaive_check.clear_denoms()[1]).as_expr()
-        generaive_check = Poly(generaive_check, x).set_modulus(self.p).as_expr() 
-        if generaive_check == 1:
+        #generative_check = Poly(Pow(generative, q), x).div(Poly(self.irreducible_polynomial, x))[1]
+        #generative_check = (generative_check.clear_denoms()[1]).as_expr()
+        #generative_check = Poly(generative_check, x).set_modulus(self.p).as_expr() 
+        if Poly(generative, x) in self.Finding_the_generators_of_the_field() == True:
             Decomposition = []
             for i in range(q):
                 Element = Poly(Pow(generative, i), x).div(Poly(self.irreducible_polynomial, x))[1]
@@ -204,10 +224,13 @@ class Galois_field:
         else: return "Не образующее"
 
 def Affine_encryption(Open_text: str, Galois: Galois_field, a, b) -> str:
+    #print(Galois.Galois_field)
+    #if Poly(a, x).as_expr() or Poly(b, x).as_expr() in Galois.Galois_field == False:
+    #    return("a или b не принадлежат полю Галуа.")
     Binary_open_text = Text_to_binary(Open_text)
-    print(Binary_open_text)
+    #print(Binary_open_text)
     Text_for_encryption = Binary_text_to_blocks(Binary_open_text, Galois.n) # По сути х(х1, х2, ...)
-    print(Text_for_encryption)
+    #print(Text_for_encryption)
     #print(Text_for_encryption)
     Encryption_text = ""
     Blocks_with_encryption_text = []
@@ -224,9 +247,9 @@ def Affine_encryption(Open_text: str, Galois: Galois_field, a, b) -> str:
 
 def Affine_decryption(Cipher_text: str, Galois: Galois_field, a, b):
     Open_text = ""
-    print(Cipher_text)
+    #print(Cipher_text)
     Blocks_with_cipher_text = Cipher_text.split("/") # x, правда пока не преобразованы в полиномы
-    print(Blocks_with_cipher_text)
+    #print(Blocks_with_cipher_text)
     for a_1 in Galois.Galois_field:
         Element = a_1 * a
         #print(Element, a_1)
@@ -262,20 +285,20 @@ def Affine_decryption(Cipher_text: str, Galois: Galois_field, a, b):
     #print(Open_text)
     while len(Open_text) % 8 != 0:
         Open_text = Open_text[0: len(Open_text) - 1]
-    print(Open_text)
+    #print(Open_text)
     return binary_to_text(Open_text)
 
-Galois = Galois_field(2, 3)
-Galois.Obtaining_an_irreducible_polynomial("x**3 + x**2 + x + 1")
+#Galois = Galois_field(2, 3)
+#Galois.Obtaining_an_irreducible_polynomial("x**3 + x**2 + x + 1")
 #print(Galois.Obtaining_an_irreducible_polynomial("x**3"))
-print(Galois.Galois_field)
+#print(Galois.Galois_field)
 #print(Affine_encryption("hello world", Galois, x, 1))
-print(Affine_decryption(Affine_encryption("hello world", Galois, x, 1), Galois, x, 1))
+#print(Affine_decryption(Affine_encryption("hello world", Galois, x, 1), Galois, x, 1))
 #print(Galois.Addition_or_multiplication_of_polynomials(1, ["3*x**2 + 3*x", "7*x**2 - 5*x + 7", "x**3"]))
 #print(Galois.Finding_the_generators_of_the_field())
 #print(Galois.Decomposition_by_degrees_of_the_selected_generator("x"))
-A = Galois.Generation_of_irreducible_polynomials()
-print(A)
+#A = Galois.Generation_of_irreducible_polynomials()
+#print(A)
 #print(Construction_of_the_Galois_field(2, 3))
 
 #B = (Poly("x**4", x).div(Poly("2*x**2 - 2*x + 1", x)))[0].as_expr()
@@ -286,3 +309,29 @@ print(A)
 #Result = Binary_text_to_blocks(Text_to_binary("hello world"), 3)
 #for i in range(len(Result)):
 #    print(Result[i])
+Galois = Galois_field(3, 2)
+Galois.Obtaining_an_irreducible_polynomial("2*x**2 - 2*x + 1")
+#print("Образующие заданного поля:")
+#print(Galois.Finding_the_generators_of_the_field())
+#print(Galois.Obtaining_an_irreducible_polynomial("2*x**2 - 2*x + 1"))
+#print("Введите неприводимый многочлен, умножение - '*', возведение в степень - '**'. Сложение и вычитание стандартные, записываются через пробел. Переменная - х:")
+#print("Введите 1, если хотите ввести неприводимый многочлен самостоятельно. Введите 2, если хотите получить список подходящих неприводимых многочленов:")
+#print("Введите 0, если хотите сложить многочлены, введите 1, если хотите их умножить:")
+#print("Введите обраующее, по степеням которого хотите выполнить разложение:")
+print("Введите значения p, n и неприводимый многочлен. Всё в одну строчку через '/':")
+input()
+print("Введите значения a и b, они должны принадлежать полю Галуа:")
+input()
+print("Введите шифртекст, который хотите расшифровать:")
+input()
+#print(Affine_encryption("hello world", Galois, 1, 2))
+print(Affine_decryption(Affine_encryption("hello world", Galois, 1, 2), Galois, 1, 2))
+#print(Galois.Decomposition_by_degrees_of_the_selected_generator("x + 1"))
+#print("Введите многочлены, которые хотите умножить. умножение - '*', возведение в степень - '**'. Сложение и вычитание стандартные, записываются через пробел. Переменная - х. Многочлены разделять '/'.")
+#input()
+#print(Galois.Addition_or_multiplication_of_polynomials(1, "2*x + 1/x"))
+#print(Galois.Generation_of_irreducible_polynomials())
+#print(Galois.Obtaining_an_irreducible_polynomial("2*x**2 + 2*x + 2"))
+#print("Введите значения p и n в одну строчку через пробел:")
+#k = input()
+#print(Galois.Galois_field)
