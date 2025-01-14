@@ -8,7 +8,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
-
+#include <set>
 class Polynomial {
 
 private:
@@ -21,23 +21,12 @@ public:
 
   int getCoef(const int degree) const { return coefficients[degree]; }
 
-  const int galua_division(const int divident, const int divider) const {
-    if (divider == 1)
-      return divident;
-    for (int i = 0; i < galuaDet; i++) {
-      if (i * divider % galuaDet == 1)
-        return (divident * i % galuaDet);
-    }
-    return -1;
-  }
-
   // Функция удаления ведущих нулей в массиве коэффициентов
   void trim() {
-    while (coefficients.size() > 1 && coefficients.front() == 0) {
-      coefficients.erase(coefficients.begin());
+    while (coefficients.size() > 1 && coefficients.back() == 0) {
+      coefficients.erase(coefficients.end());
     }
   }
-
   // Приведение многочлена по модулю
   void modulo() {
     for (size_t i = 0; i < coefficients.size(); ++i) {
@@ -52,15 +41,28 @@ public:
   }
 
   // Стандартный конструктор от вектора коэффициентов
-  Polynomial(const std::vector<int> &coeffs, int det = INT_MAX) {
-    coefficients = coeffs;
-    galuaDet = det;
-    trim();
-    std::reverse(coefficients.begin(), coefficients.end());
-  }
-
+  Polynomial(const std::vector<int> &coeffs, int det = INT_MAX)
+      : galuaDet{det},
+        coefficients{coeffs.rbegin(), std::reverse_iterator{std::find_if(
+                                          coeffs.begin(), coeffs.end() - 1,
+                                          [](int a) { return a; })}} {}
   // Получить степень многочлена
   int degree() const { return coefficients.size() - 1; }
+
+  const int galua_division(const int divident, const int divider) const {
+    if (divider == 1)
+      return divident;
+
+    if (galuaDet != INT_MAX) {
+      for (int i = 1; i < galuaDet; ++i) {
+        if (i * divider % galuaDet == 1) {
+          return (divident * i % galuaDet);
+        }
+      }
+    }
+
+    return -1;
+  }
 
   // Перегрузка оператора сложения
   Polynomial operator+(const Polynomial &addend) const {
@@ -134,8 +136,9 @@ public:
       k += 1;
       remainderSize -= 1;
     }
-    
-    std::vector<int> intremainder(remainder.end() - remainderSize, remainder.end());
+
+    std::vector<int> intremainder(remainder.end() - remainderSize,
+                                  remainder.end());
     Polynomial c(intremainder, polydivisor.getDet());
     c.modulo();
     return c;
