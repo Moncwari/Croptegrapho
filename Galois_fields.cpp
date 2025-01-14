@@ -1,6 +1,8 @@
 #include "Polynomial.hpp"
 #include <bitset>
 
+
+
 // Генерация допустимого образующего полинома для группы
 Polynomial polyBuilding(int p, int n) { // p^n
   std::vector<int> coefs(n, 0);
@@ -73,6 +75,14 @@ std::vector<Polynomial> fieldBuilding(int n, int p) {
   return vecRes;
 }
 
+Polynomial get_irr(int p, int n){
+  while (true){
+    Polynomial q = polyBuilding(p, n);
+    if (isIrreducible(q, p))
+      return q;
+  }
+}
+
 // Cложение полиномов в поле
 Polynomial fieldSum(Polynomial first, Polynomial second) {
   Polynomial result = first + second;
@@ -92,6 +102,7 @@ Polynomial fieldMultiply(Polynomial first, Polynomial second,
                          Polynomial formPoly) {
   Polynomial result = first * second;
   result = result % formPoly;
+  result.trim();
   return result;
 }
 
@@ -108,13 +119,11 @@ std::vector<Polynomial> findGenerators(const std::vector<Polynomial> &field,
       continue; // Пропускаем нулевой элемент
     }
     bool flag = false;
-    bool flag2 = true;
 
     Polynomial cur = elem;
 
     for (int i = 2; i < fieldOrder + 1; ++i) {
       cur = fieldMultiply(cur, elem, formPoly);
-      /// std::cout << elem << " ^ " << i << " = " << cur << '\n';
       cur.trim();
       if (cur == singular) {
         if (i == fieldOrder) {
@@ -123,13 +132,7 @@ std::vector<Polynomial> findGenerators(const std::vector<Polynomial> &field,
         break;
       }
     }
-    for (auto &elem2 : generators) {
-      if (elem == elem2) {
-        flag2 = false;
-      }
-    }
-
-    if (flag && flag2) {
+    if (flag) {
       generators.push_back(elem); // Добавляем в список образующих
     }
   }
@@ -183,12 +186,12 @@ void degreeDecompose(int p, int n, const Polynomial &formPoly,
 // Поиск обратного элемента в поле
 Polynomial findReverse(const Polynomial &poly, const Polynomial &formPoly,
                        std::vector<Polynomial> field) {
+  Polynomial singular = Polynomial({1}, poly.getDet());
   for (const auto &elem : field) {
-    if (elem == Polynomial({0}, formPoly.getDet()))
-      continue;
     if (fieldMultiply(poly, elem, formPoly) ==
-        Polynomial({1}, formPoly.getDet()))
+        singular) {
       return elem;
+      }
   }
   throw std::invalid_argument("Нет обратного элемента в поле");
 }
@@ -254,25 +257,26 @@ polyBlockTextToBin(const std::vector<Polynomial> polyBlocks) {
 }
 
 // Зашифрование текста
-std::string encryption(std::string opentext, Polynomial a, Polynomial b) {
-  Polynomial formPoly = polyBuilding(2, 8);
+std::string encryption(std::string opentext, Polynomial a, Polynomial b, Polynomial irr) {
+  Polynomial formPoly = irr;
   std::vector<Polynomial> polyText = blockTextToPoly(stringToBinary(opentext));
   for (auto &elem : polyText) {
     elem = fieldMultiply(elem, a, formPoly);
     elem = fieldSum(elem, b);
   }
-  std::cout << "xyi";
+
   std::string ciphertext = binaryToString(polyBlockTextToBin(polyText));
   return ciphertext;
 }
 
 // Расшифрование текста
-std::string decryption(std::string ciphertext, Polynomial a, Polynomial b) {
+std::string decryption(std::string ciphertext, Polynomial a, Polynomial b, Polynomial irr) {
   std::vector<Polynomial> polyText =
       blockTextToPoly(stringToBinary(ciphertext));
-  Polynomial formPoly = polyBuilding(2, 8);
-  std::vector<Polynomial> field = fieldBuilding(6, 1);
+  Polynomial formPoly = irr;
+  std::vector<Polynomial> field = fieldBuilding(8, 1);
   Polynomial revA = findReverse(a, formPoly, field);
+
   for (auto &elem : polyText) {
     elem = fieldDif(elem, b);
     elem = fieldMultiply(elem, revA, formPoly);
@@ -280,3 +284,4 @@ std::string decryption(std::string ciphertext, Polynomial a, Polynomial b) {
   std::string opentext = binaryToString(polyBlockTextToBin(polyText));
   return opentext;
 }
+

@@ -5,10 +5,10 @@
 #include <cmath>
 #include <initializer_list>
 #include <iostream>
+#include <set>
 #include <stdexcept>
 #include <utility>
 #include <vector>
-#include <set>
 class Polynomial {
 
 private:
@@ -77,7 +77,7 @@ public:
       sum[i] = a + b;
     }
 
-    return Polynomial(sum);
+    return Polynomial(sum, galuaDet);
   }
 
   // Перегрузка оператора вычитания
@@ -95,7 +95,7 @@ public:
       difference[i] = a - b;
     }
 
-    return Polynomial(difference);
+    return Polynomial(difference, galuaDet);
   }
 
   // Перегрузка оператора умножения
@@ -111,7 +111,7 @@ public:
       }
     }
 
-    return Polynomial(comp);
+    return Polynomial(comp, galuaDet);
   }
 
   // Перегрузка оператора взятия остатка от деления
