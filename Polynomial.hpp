@@ -24,7 +24,7 @@ public:
   // Функция удаления ведущих нулей в массиве коэффициентов
   void trim() {
     while (coefficients.size() > 1 && coefficients.back() == 0) {
-      coefficients.erase(coefficients.end());
+      coefficients.pop_back();
     }
   }
   // Приведение многочлена по модулю
@@ -32,6 +32,7 @@ public:
     for (size_t i = 0; i < coefficients.size(); ++i) {
       coefficients[i] = (coefficients[i] % galuaDet + galuaDet) % galuaDet;
     }
+    trim();
   }
 
   // По умолчанию инициализирую многочлен как нулевой
@@ -68,7 +69,7 @@ public:
   Polynomial operator+(const Polynomial &addend) const {
     size_t sumDegree =
         std::max(coefficients.size(), addend.coefficients.size());
-    std::vector sum(sumDegree, 0);
+    std::vector<int> sum(sumDegree, 0);
 
     for (size_t i = 0; i < sumDegree; ++i) {
       int a = (i < coefficients.size()) ? coefficients[i]
@@ -76,8 +77,11 @@ public:
       int b = (i < addend.coefficients.size()) ? addend.coefficients[i] : 0;
       sum[i] = a + b;
     }
-
-    return Polynomial(sum, galuaDet);
+    std::reverse(sum.begin(), sum.end());
+    Polynomial res = Polynomial(sum, galuaDet);
+    res.modulo();
+    res.trim();
+    return res;
   }
 
   // Перегрузка оператора вычитания
@@ -94,8 +98,11 @@ public:
                   : 0; // Коэффициент из вычитаемого
       difference[i] = a - b;
     }
-
-    return Polynomial(difference, galuaDet);
+    std::reverse(difference.begin(), difference.end());
+    Polynomial ans(difference, galuaDet);
+    ans.modulo();
+    ans.trim();
+    return ans;
   }
 
   // Перегрузка оператора умножения
@@ -197,3 +204,5 @@ public:
     return os;
   }
 };
+
+
