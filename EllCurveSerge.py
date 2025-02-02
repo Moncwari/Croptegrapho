@@ -9,12 +9,35 @@ class EllCurve:
         self.p = p
         self.a = a
         self.b = b
-        sqrs = []
-        for i in range ((self.p+1)//2):
-            sqr = i**2 % self.p
-            sqrs.append(sqr)
-        self.sqrs_list = sqrs
-        self.sqrs_set = set(sqrs)
+
+    def square_root(self, k): # Корень из k по модулю p
+        self.k = k
+        if sympy.legendre_symbol(self.k, self.p) == -1:
+            return 0.5
+        else:
+            if sympy.legendre_symbol(-1, self.p) == -1:
+                b = -1
+            else:
+                b = 2
+                while sympy.legendre_symbol(b, self.p) != -1:
+                    b += 1
+            s = 0
+            p_1 = self.p-1
+            while p_1 % 2 == 0:
+                p_1 = p_1 // 2
+                s += 1
+            t = (self.p-1) // 2**s
+
+            reversed_k = rev_a(self.p, self.k)
+            C_0 = pow(b, t, self.p)
+            r = pow(self.k, (t+1)//2, self.p)
+
+            for i in range(1, s):
+                d_i = pow((r**2*reversed_k), 2**(s-i-1), self.p)
+                if d_i % self.p == self.p-1:
+                    r = (r*C_0) % self.p
+                C_0 = pow(C_0, 2, self.p)
+            return to_sym_norm_F(r, self.p, 0), -to_sym_norm_F(r, self.p, 0)
 
     def summary(self, point1, point2):
         self.point1 = point1
@@ -100,9 +123,9 @@ class EllCurve:
     def point_creator(self, x):
         self.x = x
         sqr_y = (x**3 + self.a*x + self.b) % self.p
-        if sqr_y in self.sqrs_set:
-            y = self.sqrs_list.index(sqr_y)
-            return (x, -y), (x, y)
+        y = self.square_root(sqr_y)
+        if y != 0.5:
+            return (x, y[0]), (x, y[1])
         else:
             return -1
 
@@ -185,15 +208,22 @@ def to_sym_norm_F(a, p, key):
         a = ((a%p) + p) % p
     return a
 
+#print(to_sym_norm_F(square_root(10, 13)[0], 13, 0), to_sym_norm_F(square_root(10, 13)[1], 13, 0))
+
 def factor(a):
     ans = set()
-    d = 2
+    if a % 2 == 0:
+        ans.add(2)
+        while a % 2 == 0:
+            a //= 2
+    d = 3
     while a > 1:
-        if sympy.isprime(d) and a%d==0:
+        if a % d == 0:
             ans.add(d)
-            a //= d
+            while a % d == 0:
+                a //= d
         else:
-            d += 1
+            d += 2
     return ans
 
 def Ferma(n):
@@ -207,17 +237,23 @@ def Ferma(n):
         return n
     else:
         return 0
-print(Ferma(63973))
+#print(Ferma(63973))
 
 #print(rev_a(5, -2))
 #print(factor(13))
-for n in range (2**25, 2**25 + 1000):
+
+for n in range (2**45, 2**45 + 1000):
     if Ferma(n):
         print(n)
         curve = EllCurve(Ferma(n), 3, 1)
         print("Порядок:", curve.order())
         break
-curve = EllCurve(999983, 3, 1)
+
+#curve = EllCurve(13, 2, 2)
+#for x in range(-6, 7):
+#    point = curve.point_creator(x)
+#    if point != -1:
+#        print(point)
 #a = [-2, -4]
 #degree = 2
 #points = curve.point_creator()
