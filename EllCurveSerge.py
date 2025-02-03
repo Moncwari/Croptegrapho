@@ -42,6 +42,7 @@ class EllCurve:
     def summary(self, point1, point2):
         self.point1 = point1
         self.point2 = point2
+        #print(self.point1, self.point2)
         x1, y1 = self.point1[0], self.point1[1]
         x2, y2 = self.point2[0], self.point2[1]
         if self.point1 == ("a", "a"): # 0 + P = P
@@ -123,24 +124,24 @@ class EllCurve:
     def point_creator(self, x):
         self.x = x
         sqr_y = (x**3 + self.a*x + self.b) % self.p
-        y = self.square_root(sqr_y)
-        if y != 0.5:
-            return (x, y[0]), (x, y[1])
+        if sqr_y == 0:
+            return ((x, 0), (x, 0))
         else:
-            return -1
+            y = self.square_root(sqr_y)
+            if y != 0.5:
+                return (x, y[0]), (x, y[1])
+            else:
+                return -1
 
     def baby_giant(self, point):
         self.P = point
-        #print(self.P)
         Q = self.point_degree(self.P, (self.p+1))
+        #print(Q)
         m = int((self.p)**(1/4)) + 1
-        #print(m)
         jPs = [self.point_degree(self.P, j) for j in range(0, m+1)]
-        #print(jPs)
 
         for k in range (-m, m+1):
             Q_ = self.summary(Q, self.point_degree(self.P, 2*m*k))
-            #print(Q_)
             if Q_ in jPs:
                 l = -jPs.index(Q_)
                 M = self.p + 1 + 2*m*k + l
@@ -158,14 +159,11 @@ class EllCurve:
                         break
 
         M = self.p + 1 + 2*m*k + l
-        #print(k, l, M)
         fact_M = factor(M)
         for p_i in fact_M:
             new_M = M//p_i
             if self.point_degree(self.P, new_M) == ("a", "a"):
                 M = new_M
-        #print(M)
-        #print()
         return M
 
     def order(self):
@@ -174,17 +172,40 @@ class EllCurve:
         for x in range (-(self.p-1)//2, (self.p+1)//2):
             point = self.point_creator(x)
             if point != -1:
-                #print(point[0])
                 LCM = math.lcm(LCM, self.baby_giant(point[0]))
-                #print(LCM)
                 counter = 0
                 for i in range (int(self.p+1-2*self.p**(1/2))+1, int(self.p+1+2*self.p**(1/2))+1):
                     if i % LCM == 0:
                         N = i
                         counter += 1
-                        #print(i, 1)
                 if counter == 1:
                     return N
+
+    def find_subgropus(self):
+        N = self.order()
+        p_0 = ("a", "a")
+        fact_N = factor(N)
+        list_fact_N = list(factor(N))
+        point_in_subgroups = []
+        for _ in range (len(fact_N)):
+            point_in_subgroups.append(set([p_0]))
+        subgropus_dict = dict(zip(list_fact_N, point_in_subgroups))
+
+        for x in range (-(self.p-1)//2, (self.p+1)//2):
+            point = self.point_creator(x)
+            #print(point)
+            if point != -1:
+                point_order = self.baby_giant(point[0])
+                if (point_order in fact_N) and (point[0] not in subgropus_dict[point_order]) and (point[1] not in subgropus_dict[point_order]): 
+                    subgropus_dict[point_order].add(point[0])
+                    subgropus_dict[point_order].add(point[1])
+                    print("Подгруппа порядка", point_order)
+                    for i in range (point_order):
+                        point_degr = self.point_degree(point[0], i)
+                        print(point_degr)
+                        subgropus_dict[point_order].add(point_degr)
+                    print()
+        return subgropus_dict
 
 def rev_a(n, a):
     r, y1, y2 = 1, 1, 0
@@ -242,24 +263,20 @@ def Ferma(n):
 #print(rev_a(5, -2))
 #print(factor(13))
 
-for n in range (2**45, 2**45 + 1000):
-    if Ferma(n):
-        print(n)
-        curve = EllCurve(Ferma(n), 3, 1)
-        print("Порядок:", curve.order())
-        break
+#for n in range (2**45, 2**45+1000):
+    #if Ferma(n):
+        #print(n)
+curve = EllCurve(997, -2, 1)
+print("Порядок:", curve.order())
+print(curve.find_subgropus())
+        #break
 
 #curve = EllCurve(13, 2, 2)
 #for x in range(-6, 7):
-#    point = curve.point_creator(x)
-#    if point != -1:
-#        print(point)
-#a = [-2, -4]
-#degree = 2
-#points = curve.point_creator()
-#print(curve.point_degree(a, degree))
-#for point in points:
-#    print(curve.baby_giant(point))
+    #point = curve.point_creator(x)
+    #if point != -1:
+        #print(point[0])
+        #print(curve.baby_giant(point[0]))
 
 print("""Введите 1, если хотите построить эллиптическую кривую,
       отобразить группу её точек и вычислить порядок таковой""")
