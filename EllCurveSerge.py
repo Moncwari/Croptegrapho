@@ -1,16 +1,14 @@
-from itertools import product
 import math
 import sympy
 import random
-from numpy import sign
 
 class EllCurve:
-    def __init__(self, p, a, b):
+    def __init__(self, p, a, b): # y^2 = x^3 + ax + b над F(p)
         self.p = p
         self.a = a
         self.b = b
 
-    def square_root(self, k): # Корень из k по модулю p
+    def square_root(self, k): # Извлечение корня из k по модулю p
         self.k = k
         if sympy.legendre_symbol(self.k, self.p) == -1:
             return 0.5
@@ -39,10 +37,9 @@ class EllCurve:
                 C_0 = pow(C_0, 2, self.p)
             return to_sym_norm_F(r, self.p, 0), -to_sym_norm_F(r, self.p, 0)
 
-    def summary(self, point1, point2):
+    def summary(self, point1, point2): # Сложение двух точек
         self.point1 = point1
         self.point2 = point2
-        #print(self.point1, self.point2)
         x1, y1 = self.point1[0], self.point1[1]
         x2, y2 = self.point2[0], self.point2[1]
         if self.point1 == ("a", "a"): # 0 + P = P
@@ -70,14 +67,14 @@ class EllCurve:
                 else: # P =- Q, x1 = x2, y1 = -y2
                     return ("a", "a")
 
-    def minus_point(self, point):
+    def minus_point(self, point): # Нахождение точки, симметричной данной относительно OX
         self.point = point
         if self.point == ("a", "a"):
             return ("a", "a")
         else:
             return (self.point[0], -self.point[1])
 
-    def point_degree(self, point, degree):
+    def point_degree(self, point, degree): # Вычисление точки заданной кратности
         self.point = point
         self.degree = degree
         flag = False
@@ -121,7 +118,7 @@ class EllCurve:
             else:
                 return ans
 
-    def point_creator(self, x):
+    def point_creator(self, x): # Содание точки (вычисление y-координаты по x-координате)
         self.x = x
         sqr_y = (x**3 + self.a*x + self.b) % self.p
         if sqr_y == 0:
@@ -133,10 +130,9 @@ class EllCurve:
             else:
                 return -1
 
-    def baby_giant(self, point):
+    def baby_giant(self, point): # Нахождение порядка точки ("шаг младенца, шаг великана")
         self.P = point
         Q = self.point_degree(self.P, (self.p+1))
-        #print(Q)
         m = int((self.p)**(1/4)) + 1
         jPs = [self.point_degree(self.P, j) for j in range(0, m+1)]
 
@@ -166,12 +162,17 @@ class EllCurve:
                 M = new_M
         return M
 
-    def order(self):
+    def order(self): # Нахождение порядка группы всех точек эллиптической кривой
         LCM = 1
         flag = False
+        point_counter = 1
         for x in range (-(self.p-1)//2, (self.p+1)//2):
             point = self.point_creator(x)
             if point != -1:
+                if point[0] == point[1]:
+                    point_counter += 1
+                else:
+                    point_counter += 2
                 LCM = math.lcm(LCM, self.baby_giant(point[0]))
                 counter = 0
                 for i in range (int(self.p+1-2*self.p**(1/2))+1, int(self.p+1+2*self.p**(1/2))+1):
@@ -179,9 +180,12 @@ class EllCurve:
                         N = i
                         counter += 1
                 if counter == 1:
+                    flag = True
                     return N
+        if not flag:
+            return point_counter
 
-    def find_subgropus(self):
+    def find_subgroups(self): # Нахождение всех подгрупп простого порядка
         N = self.order()
         p_0 = ("a", "a")
         fact_N = factor(N)
@@ -193,21 +197,20 @@ class EllCurve:
 
         for x in range (-(self.p-1)//2, (self.p+1)//2):
             point = self.point_creator(x)
-            #print(point)
             if point != -1:
                 point_order = self.baby_giant(point[0])
                 if (point_order in fact_N) and (point[0] not in subgropus_dict[point_order]) and (point[1] not in subgropus_dict[point_order]): 
                     subgropus_dict[point_order].add(point[0])
                     subgropus_dict[point_order].add(point[1])
+                    print()
                     print("Подгруппа порядка", point_order)
                     for i in range (point_order):
                         point_degr = self.point_degree(point[0], i)
-                        print(point_degr)
                         subgropus_dict[point_order].add(point_degr)
-                    print()
+                        print(point_degr)
         return subgropus_dict
 
-def rev_a(n, a):
+def rev_a(n, a): # Нахождение числа обратного a по модулю n
     r, y1, y2 = 1, 1, 0
     n_old = n
     while r:
@@ -220,18 +223,16 @@ def rev_a(n, a):
         y1 = y
     return (y2 + n_old) % n_old
 
-def to_sym_norm_F(a, p, key):
-    if key == 0: # В симметричное поле
+def to_sym_norm_F(a, p, key): # Перевод числа в простое конечное поле
+    if key == 0: # В симметричное относительно 0
         a = a%p
         if a > (p-1)//2:
             a -= p
-    if key == 1: # В обычное поле
+    if key == 1: # В обычное
         a = ((a%p) + p) % p
     return a
 
-#print(to_sym_norm_F(square_root(10, 13)[0], 13, 0), to_sym_norm_F(square_root(10, 13)[1], 13, 0))
-
-def factor(a):
+def factor(a): # Разложение числа на различные простые множители
     ans = set()
     if a % 2 == 0:
         ans.add(2)
@@ -247,7 +248,7 @@ def factor(a):
             d += 2
     return ans
 
-def Ferma(n):
+def Ferma(n): # Тест Ферма на простоту
     flag = True
     for t in range (1, 10):
         a = random.randint(2, n-1)
@@ -258,47 +259,88 @@ def Ferma(n):
         return n
     else:
         return 0
-#print(Ferma(63973))
 
-#print(rev_a(5, -2))
-#print(factor(13))
+print("Генерация большого простого числа...")
+for n in range (2**45, 2**45+1000):
+    if Ferma(n):
+        print(n)
+        break
+print("""Введите через пробел значения p, a и b,
+p - простое и больше 3, a и b принадлежат простому конечному полю F(p),
+симметричному относительно 0""")
+string = input().split()
+p, a, b = int(string[0]), int(string[1]), int(string[2])
+flag = True
+if (-4*a**3 - 27*b**2) % p == 0:
+    print("""Введённые значения не соответствуют условию гладкости эллиптической кривой""")
+    flag = False
+if p <= 3:
+    print("Число p не является большим 3")
+    flag = False
+else:
+    if not Ferma(p):
+        print("Число p не является простым")
+        flag = False
+if a not in range(-(p-1)//2, (p+1)//2) or b not in range(-(p-1)//2, (p+1)//2):
+    print("""Числа a и b не принадлежат простому конечному полю F(p)""")
+    flag = False
 
-#for n in range (2**45, 2**45+1000):
-    #if Ferma(n):
-        #print(n)
-curve = EllCurve(997, -2, 1)
-print("Порядок:", curve.order())
-print(curve.find_subgropus())
-        #break
+if flag:
+    curve = EllCurve(p, a, b)
+    print("""Введите 1, если хотите построить эллиптическую кривую,
+отобразить группу её точек и вычислить порядок таковой""")
+    print("Введите 2, если хотите вычислить точку заданной кратности")
+    print("""Введите 3, если хотите найти все подгруппы группы точек
+эллиптической кривой некоторого простого порядка""")
+    _ = int(input())
 
-#curve = EllCurve(13, 2, 2)
-#for x in range(-6, 7):
-    #point = curve.point_creator(x)
-    #if point != -1:
-        #print(point[0])
-        #print(curve.baby_giant(point[0]))
+    if _ == 1:
+        cur_ord = curve.order()
+        print("""Порядок группы точек эллиптической кривой равен""", cur_ord)
+        if cur_ord > 100:
+            print("""Эллиптическая кривая содержит слишком много точек,
+удовлетворяющих уравнению y^2 = x^3 + """ + str(a) + "x + " + str(b) +
+" над полем F(" + str(p) + """),
+выведем лишь некоторые из них""")
+            for x in range(0, 100):
+                point = curve.point_creator(x)
+                if point != -1:
+                    print(point[0], point[1])
+        else:
+            print("""Все точки эллиптической кривой, удовлетворяющие уравнению
+y^2 = x^3 + """ + str(a) + "x + " + str(b) + " над полем F(" + str(p) + ")")
+            print(("a", "a"))
+            for x in range(-(p-1)//2, (p+1)//2):
+                point = curve.point_creator(x)
+                if point != -1:
+                    if point[0] == point[1]:
+                        print(point[0])
+                    else:
+                        print(point[0], point[1])
 
-print("""Введите 1, если хотите построить эллиптическую кривую,
-      отобразить группу её точек и вычислить порядок таковой""")
-print("Введите 2, если хотите вычислить точку заданной кратности")
-print("""Введите 3, если хотите найти все подгруппы группы точек
-      эллиптической кривой некоторого порядка""")
-a = int(input())
-if a == 1:
-    print("""Введите через пробел: p - порядок простого
-          конечного поля, a и b - коэффициенты в уравнении
-          эллиптической кривой y^2 = x^3 + ax + b""")
-    string = input().split()
-    p, a, b = int(string[0]), int(string[1]), int(string[2])
-    if (-4*a**3 - 27*b**2) % p == 0:
-        print("""Введённые значения не соответствуют условию
-              гладкости эллиптической кривой""")
-    else:
-        curve = EllCurve(p, a, b)
-        a = curve.point_creator()
-        print(a)
-        #b = curve.point_degree([-5, -6], 3)
-        #print(b)
-        #for point in a:
-            #print(point, curve.baby_giant(point))
-            #print()
+    if _ == 2:
+        print("""Введите координаты точки через пробел, а на следующей строке -
+число, соответствующее кратности искомой точки""")
+        string = input().split()
+        x, y = int(string[0]), int(string[1])
+        degree = int(input())
+        if x not in range (-(p-1)//2, (p+1)//2):
+            print("Введённой точки не существует на нашей кривой")
+        else:
+            true_point = curve.point_creator(x)
+            if true_point == -1:
+                print("Введённой точки не существует на нашей кривой")
+            else:
+                if true_point[0][1] != y and true_point[1][1] != y:
+                    print("Введённой точки не существует на нашей кривой")
+                else:
+                    print("Точка заданной кратности")
+                    point_deg = curve.point_degree((x, y), degree)
+                    if point_deg == ("a", "a"):
+                        print(0)
+                    else:
+                        print(curve.point_degree((x, y), degree))
+
+    if _ == 3:
+        print("Все подгруппы группы точек нашей кривой простого порядка")
+        curve.find_subgroups()
