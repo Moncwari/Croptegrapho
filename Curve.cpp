@@ -11,13 +11,19 @@
 #include <set>
 #include <cstdlib>
 #include <ctime>
+#include <random>
 
 
 int findReverse(int x, int p) {
-    for (int i = 0; i < p; ++i) {
-        if ((i * x) % p == 1) return i; 
+    if (x < 0) x = (x % p + p) % p;
+    int a = x, b = p, u = 1, v = 0;
+    while (b != 0) {
+        int t = a / b;
+        a -= t * b; std::swap(a, b);
+        u -= t * v; std::swap(u, v);
     }
-    return -1;
+    if (a != 1) return -1;
+    return (u % p + p) % p;
 }
 
 int intPow(int base, int exp) {
@@ -76,22 +82,70 @@ std::vector<int> factorizeSlow(int n) {
     return factors;
 }
 
-long long mulmod(long long a, long long b, long long mod) {
-    long long res = 0;
-    a %= mod;
-    while (b > 0) {
-        if (b % 2 == 1) res = (res + a) % mod;
-        a = (a * 2) % mod;
-        b /= 2;
+long long powerMod(long long a, long long b, long long p) {
+    long long res = 1;
+    a %= p;
+    while (b) {
+        if (b & 1) res = res * a % p;
+        a = a * a % p;
+        b >>= 1;
     }
     return res;
 }
 
-long long f(long long x, long long c, long long n) {
-    return (mulmod(x, x, n) + c) % n;
+bool isPrimeFermat(long long n, int iterations = 5) {
+    if (n < 4)
+        return (n == 2 || n == 3); 
+
+    srand(time(0));
+
+    for (int i = 0; i < iterations; i++) {
+        long long a = 2 + rand() % (n - 3);
+        if (powerMod(a, n - 1, n) != 1)
+            return false;
+    }
+    return true;
 }
 
-long long pollard_rho(long long n) {
+bool millerTest(long long d, long long n) {
+    if (n < 4) return (n == 2 || n == 3);
+    
+    long long a = 2 + rand() % (n - 4);
+    long long x = powerMod(a, d, n);
+
+    if (x == 1 || x == n - 1)
+        return true;
+
+    while (d != n - 1) {
+        x = (__int128_t(x) * x) % n;
+        d *= 2;
+
+        if (x == 1) return false;
+        if (x == n - 1) return true;
+    }
+
+    return false;
+}
+
+bool isPrimeMillerRabin(long long n, int iterations = 10) {
+    if (n <= 4) return (n == 2 || n == 3);
+
+    long long d = n - 1;
+    while (d % 2 == 0)
+        d /= 2;
+
+    for (int i = 0; i < iterations; i++) {
+        if (!millerTest(d, n))
+            return false;
+    }
+    return true;
+}
+
+long long f(long long x, long long c, long long n) {
+    return (powerMod(x, x, n) + c) % n;
+}
+
+long long pollardRho(long long n) {
     if (n % 2 == 0) return 2;
     long long x = 2, y = 2, c = 1;
     while (true) {
@@ -115,32 +169,16 @@ std::vector<long long> factorize(long long n) {
             if (n > 1) factors.push_back(n);
             break;
         }
-        long long factor = pollard_rho(n);
+        long long factor = pollardRho(n);
         factors.push_back(factor);
         n /= factor;
     }
     return factors;
 }
 
-int powerMod(int a, int b, int p) {
-    int res = 1;
-    a %= p;
-    while (b > 0) {
-        if (b % 2 == 1) res = (1LL * res * a) % p;
-        a = (1LL * a * a) % p;
-        b /= 2;
-    }
-    return res;
-}
-
-
-long long sqrtMod_simple(long long a, long long p) {
-    if (p % 4 != 3) return -1; 
-    return powerMod(a, (p + 1) / 4, p);
-}
-
-long long sqrtMod_tonelli_shanks(long long a, long long p) {
-    if (powerMod(a, (p - 1) / 2, p) != 1) return -1; 
+long long sqrtModTonnelliShanks(long long a, long long p) {
+    if (a == 0) return 0;
+    if (powerMod(a, (p - 1) / 2, p) != 1) return -1;
 
     if (p % 4 == 3) return powerMod(a, (p + 1) / 4, p);
 
@@ -177,31 +215,21 @@ long long sqrtMod_tonelli_shanks(long long a, long long p) {
 }
 
 long long sqrtMod(long long a, long long p) {
+    if (a == 0) return 0; 
     if (powerMod(a, (p - 1) / 2, p) != 1) return -1;
     if (p % 4 == 3) return powerMod(a, (p + 1) / 4, p);
-    return sqrtMod_tonelli_shanks(a, p);
-}
-
-bool isQuadraticResidue(int n, int p) {
-    if (n == 0) return true;
-    int exp = (p - 1) / 2;
-    return powerMod(n, exp, p) == 1;
+    return sqrtModTonnelliShanks(a, p);
 }
 
 struct Point {
-    int x;
-    int y;
-    int a;
-    int p;
+    int x, y, a, p, order;
 
-    Point(int _x, int _y, int _a, int _p) {
-        x = _x;
-        y = _y;
-        a = _a;
-        p = _p;
-    }
+    Point() : x(0), y(0), a(0), p(-1) {}
 
-    void normalize(int &x, int p) {
+    Point(int _x, int _y, int _a, int _p) : x(_x), y(_y), a(_a), p(_p) {}
+
+    static void normalize(int &x, int p) {
+        
         if (x > (p - 1) / 2) {
             x -= p;
         }
@@ -209,110 +237,269 @@ struct Point {
 
     Point operator+(const Point &addend) {
         if (x == addend.x && y != addend.y) {
-            return Point(0, 0, a, p);
+            return Point();
         }
+        if (p == -1) return addend;
+        if (addend.p == -1) return *this;
         int resX, resY;
-        if (x != addend.x && y != addend.y) {
-            resX = ((intPow((addend.y - y) * findReverse(addend.x - x, p), 2) - x - addend.x) % p + p) % p;
-            normalize(resX, p);
-            resY = ((((addend.y - y) * findReverse(addend.x - x, p)) * (x - resX) - y) % p + p) % p;
-            normalize(resY, p);
-        }
         if (x == addend.x && y == addend.y) {
             resX = ((intPow((3 * x * x + a) * findReverse(2 * y, p), 2) - 2 * x) % p + p) % p;
             normalize(resX, p);
             resY = ((((3 * x * x + a) * findReverse(2 * y, p)) * (x - resX) - y) % p + p) % p;
             normalize(resY, p);
         }
+        else {
+            resX = ((intPow((addend.y - y) * findReverse(addend.x - x, p), 2) - x - addend.x) % p + p) % p;
+            normalize(resX, p);
+            resY = ((((addend.y - y) * findReverse(addend.x - x, p)) * (x - resX) - y) % p + p) % p;
+            normalize(resY, p);
+        }
         return Point(resX, resY, a, p);
     }
-    
-    Point operator*(int scalar) {
-        if (scalar == 0) return Point(0, 0, a, p);
-        Point result(0, 0, a, p);
+
+    Point operator*(int scalar) const {
+        if (scalar == 0 || p == -1) return Point();
+        Point result = *this;
         Point base = *this;
-        
+        if (scalar == -1){
+            return Point(x, -y, a, p);
+        }
+        else if (scalar < 0){
+            return  result * (-scalar) * (-1);
+        }
+        scalar--;
         while (scalar > 0) {
             if (scalar % 2 == 1) {
                 result = result + base;
             }
-            base = base + base; 
+            base = base + base;
             scalar /= 2;
         }
         return result;
     }
 
     bool operator==(const Point &other) const {
-    return x == other.x && y == other.y && a == other.a && p == other.p;
+        return x == other.x && y == other.y && a == other.a && p == other.p;
     }
 
-    friend std::ostream &operator<<(std::ostream &os, Point point) {
-        os << '(' << point.x << ", " << point.y << ')';
-        return os; 
+    bool operator<(const Point &other) const {
+    return std::tie(x, y, a, p) < std::tie(other.x, other.y, a, p);
     }
 
-};
-
-struct PointHash {
-    std::size_t operator()(const Point& p) const {
-        return std::hash<int>()(p.x) ^ (std::hash<int>()(p.y) << 1);
+    friend std::ostream &operator<<(std::ostream &os, const Point &point) {
+        if (point.p == -1) os << '0';
+        else os << '(' << point.x << ", " << point.y << ')';
+        return os;
     }
 };
 
-std::map<int, int> fieldSquareRoots(int p) {
-    std::vector<int> elems;
-    std::map<int, int> squares;
-    for (int i = 0; i <= p / 2; ++i) {
-        elems.push_back(i);
+class Polynomial {
+
+  std::vector<int> coefficients;
+                                 
+  int galuaDet;
+
+public:
+
+  void setDet(int det) {
+    galuaDet = det;
+  }
+
+  int getDet() const { return galuaDet; }
+
+  int getCoef(const int degree) const { return coefficients[degree]; }
+
+  void trim() {
+    while (coefficients.size() > 1 && coefficients.back() == 0) {
+      coefficients.pop_back();
     }
-    for (int elem : elems) {
-        int square = (elem * elem) % p;
-        squares[square] = elem;
+  }
+
+  void modulo() {
+    for (size_t i = 0; i < coefficients.size(); ++i) {
+      coefficients[i] = (coefficients[i] % galuaDet + galuaDet) % galuaDet;
     }
-    return squares;
+    trim();
+  }
+
+  Polynomial() {
+    coefficients = std::vector<int>({0});
+    galuaDet = INT_MAX;
+  }
+
+  Polynomial(const std::vector<int> &coeffs, int det = INT_MAX)
+      : galuaDet{det},
+        coefficients{coeffs.rbegin(), std::reverse_iterator{std::find_if(
+                                          coeffs.begin(), coeffs.end() - 1,
+                                          [](int a) { return a; })}} {}
+  int degree() const { return coefficients.size() - 1; }
+
+  const int galua_division(const int divident, const int divider) const {
+    if (divider == 1)
+      return divident;
+
+    if (galuaDet != INT_MAX) {
+      for (int i = 1; i < galuaDet; ++i) {
+        if (i * divider % galuaDet == 1) {
+          return (divident * i % galuaDet);
+        }
+      }
+    }
+    
+    return -1;
+  }
+
+  Polynomial operator+(const Polynomial &addend) const {
+    size_t sumDegree =
+        std::max(coefficients.size(), addend.coefficients.size());
+    std::vector<int> sum(sumDegree, 0);
+
+    for (size_t i = 0; i < sumDegree; ++i) {
+      int a = (i < coefficients.size()) ? coefficients[i]
+                                        : 0;
+      int b = (i < addend.coefficients.size()) ? addend.coefficients[i] : 0;
+      sum[i] = a + b;
+    }
+    std::reverse(sum.begin(), sum.end());
+    Polynomial res = Polynomial(sum, galuaDet);
+    res.modulo();
+    res.trim();
+    return res;
+  }
+
+  Polynomial operator-(const Polynomial &subtrahend) const {
+    size_t diffDegree =
+        std::max(coefficients.size(), subtrahend.coefficients.size());
+    std::vector<int> difference(diffDegree, 0);
+
+    for (size_t i = 0; i < diffDegree; ++i) {
+      int a = (i < coefficients.size()) ? coefficients[i]
+                                        : 0;
+      int b = (i < subtrahend.coefficients.size())
+                  ? subtrahend.coefficients[i]
+                  : 0;
+      difference[i] = a - b;
+    }
+    std::reverse(difference.begin(), difference.end());
+    Polynomial ans(difference, galuaDet);
+    ans.modulo();
+    ans.trim();
+    return ans;
+  }
+
+  Polynomial operator*(const Polynomial &cofactor) const {
+    size_t compDegree = coefficients.size() + cofactor.coefficients.size() - 1;
+    std::vector<int> comp(compDegree, 0);
+
+    for (size_t i = 0; i < coefficients.size(); ++i) {
+      for (size_t j = 0; j < cofactor.coefficients.size(); ++j) {
+        comp[i + j] +=
+            coefficients[coefficients.size() - i - 1] *
+            cofactor.coefficients[cofactor.coefficients.size() - j - 1];
+      }
+    }
+
+    return Polynomial(comp, galuaDet);
+  }
+
+  Polynomial operator%(const Polynomial &polydivisor) const {
+    std::vector<int> divident(coefficients.begin(), coefficients.end());
+    std::vector<int> divisor(polydivisor.coefficients.begin(),
+                             polydivisor.coefficients.end());
+    std::reverse(divident.begin(), divident.end());
+    std::reverse(divisor.begin(), divisor.end());
+    std::vector<int> remainder = divident;
+    if (divisor.empty() || (divisor.size() == 1 && divisor[0] == 0)) {
+      throw std::invalid_argument("Division by zero polynomial");
+    }
+    int remainderSize = remainder.size();
+    int divisorSize = divisor.size();
+    int k = 0;
+    while (remainderSize >= divisorSize) {
+      int coeff = galua_division(remainder[k], divisor[0]);
+      for (size_t i = 0; i < divisor.size(); ++i) {
+        remainder[k + i] -= coeff * divisor[i];
+      }
+      k += 1;
+      remainderSize -= 1;
+    }
+
+    std::vector<int> intremainder(remainder.end() - remainderSize,
+                                  remainder.end());
+    Polynomial c(intremainder, polydivisor.getDet());
+    c.modulo();
+    return c;
+  }
+
+  bool operator==(const Polynomial &other) const {
+    return (coefficients == other.coefficients && galuaDet == other.galuaDet);
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, Polynomial poly1) {
+    const std::string degreeSymbols[] = {"",  "",  "²", "³", "⁴",
+                                         "⁵", "⁶", "⁷", "⁸", "⁹"};
+    Polynomial poly = poly1;
+    std::reverse(poly.coefficients.begin(), poly.coefficients.end());
+    size_t degree = poly.coefficients.size() - 1;
+    bool isFirst = true;
+
+    for (size_t i = 0; i < poly.coefficients.size(); ++i) {
+      int coeff = poly.coefficients[i];
+      size_t currentDegree = degree - i;
+
+      if (coeff != 0) {
+        if (!isFirst) {
+          os << (coeff > 0 ? " + " : " - ");
+        } else if (coeff < 0) {
+          os << "-";
+        }
+
+        if (std::abs(coeff) != 1 || currentDegree == 0) {
+          os << std::abs(coeff);
+        }
+
+        if (currentDegree > 0) {
+          os << "x";
+          if (currentDegree < 10) {
+            os << degreeSymbols[currentDegree];
+          } else {
+            os << "^" << currentDegree;
+          }
+        }
+
+        isFirst = false;
+      }
+    }
+
+    if (isFirst) {
+      os << "0";
+    }
+
+    return os;
+  }
+};
+
+namespace std {
+    template <>
+    struct hash<Point> {
+        size_t operator()(const Point &point) const {
+            size_t h1 = std::hash<int>()(point.x);
+            size_t h2 = std::hash<int>()(point.y);
+            return h1 ^ (h2 * 19); 
+        }
+    };
 }
 
-std::vector<Point> buildCurve(int a, int b, int p) {
-    std::vector<Point> points{Point(0, 0, a, p)};
-    std::map<int, int> roots = fieldSquareRoots(p);
-    for (int x = -p / 2; x <= p / 2; ++x) {
-        int squareY = ((x * x * x + a * x + b) % p + p) % p;
-        if (roots.find(squareY) == roots.end()) {
-            continue;
-        }
-        std::pair<int, int> yRoots = {roots[squareY], -roots[squareY]};
-        if (yRoots.first == yRoots.second) {
-            points.push_back(Point(x, yRoots.first, a, p));
-            continue;
-        }
-        points.push_back(Point(x, yRoots.first, a, p));
-        points.push_back(Point(x, yRoots.second, a, p));
+static void normalize(int& coord, int p) {
+    if (coord > (p - 1) / 2) {
+        coord -= p;
     }
-    return points;
-}
-
-long long shuf(Point P) {
-
-    if (P.x == 0 && P.y == 0) return 1;
-
-    Point slow = P;
-    Point fast = P + P;
-    long long i = 1, j = 2;
-
-    while (true) {
-        
-        slow = slow + P; i++;
-        fast = fast + P; fast = fast + P; j += 2;
-
-        if (slow.x == fast.x && slow.y == fast.y) {
-            return j - i;
-        }
-
-        if ((slow.x == 0 && slow.y == 0) || (fast.x == 0 && fast.y == 0)) {
-            return std::min(i, j);
-        }
+    if (coord < -(p - 1) / 2) {
+        coord += p;
     }
 }
+
+
 
 int nativeFindOrder(int a, int b, int p) {
     int count = 1; 
@@ -328,35 +515,41 @@ int nativeFindOrder(int a, int b, int p) {
 
 int BSGS(Point P) {
     int p = P.p;
-    if (P.x == 0 && P.y == 0) return 1;
     Point Q = P * (p + 1);
+    if (P == Point()){
+        return 1;
+    } 
+
     long long m = static_cast<long long>(std::pow(p, 0.25) + 1);
 
-    std::unordered_map<Point, long long,  PointHash> babySteps;
-
+    std::unordered_map<Point, long long> babySteps;
     Point temp = P;
-    babySteps[Point(0, 0, P.a, p)] = 0;
     for (long long j = 1; j <= m; ++j) {
+        if (temp == Point()){
+            return j;
+        }
         babySteps[temp] = j;
         temp = temp + P;
     }
-
     Point giantStep = P * m;
-    giantStep = giantStep + giantStep;
     long long l;
     long long M;
-    for (long long k = - m; k <= m; ++k) {
+    for (long long k = - 2 * m; k <= 2 * m; ++k) {
         temp = Q + giantStep * k;
-        Point revtemp = Point(temp.x, -temp.y, temp.a, temp.p);
+        Point revtemp = temp * (-1);
         if (babySteps.find(temp) != babySteps.end()) {
-            l = babySteps[temp];
-            M = p + 1 + 2 * m * k;
-            break;
+            l = babySteps[temp];   
+            if (p + 1 + m * k - l != 0){
+                M = p + 1 + m * k - l;
+                break;
+            }
         }
         if (babySteps.find(revtemp) != babySteps.end()) {
-            l = -babySteps[revtemp];
-            M = p + 1 + 2 * m * k;
-            break;
+            l = babySteps[revtemp];
+            if (p + 1 + m * k + l != 0){
+                M = p + 1 + m * k + l;
+                break;
+            }
         }
     }
     exit_loop:
@@ -372,9 +565,33 @@ int BSGS(Point P) {
     return M; 
 }
 
+std::vector<Point> buildCurve(int a, int b, int p) {
+    std::vector<Point> points{{0, 0, 0, -1}}; 
+    for (int x = -p / 2; x <= p / 2; ++x) {
+        int squareY = ((x * x * x + a * x + b) % p + p) % p;
+        int s = sqrtMod(squareY, p);
+        if (s == -1) {
+            continue;
+        }
+        std::pair<int, int> yRoots{s, -s};
+        if (yRoots.first == yRoots.second) {
+            normalize(yRoots.first, p);
+            points.emplace_back(x, yRoots.first, a, p);
+            continue;
+        }
+        normalize(yRoots.first, p);
+        normalize(yRoots.second, p);
+        points.emplace_back(x, yRoots.first, a, p);
+        points.emplace_back(x, yRoots.second, a, p);
+    }
+
+    return points;
+}
+
+
 void removeInvalidOrders(long long lcmValue, std::set<long long>& orders) {
     for (auto it = orders.begin(); it != orders.end(); ) {
-        if (lcmValue % *it != 0) {
+        if (*it % lcmValue != 0) {
             it = orders.erase(it);
         } else {
             ++it;
@@ -386,20 +603,20 @@ long long findOrder(long long a, long long b, long long p) {
     long long lowerBound = static_cast<long long>(std::ceil(p + 1 - 2 * std::sqrt(p)));
     long long upperBound = static_cast<long long>(std::floor(p + 1 + 2 * std::sqrt(p)));
     std::set<long long> possibleOrders; 
-    std::cout << possibleOrders.size();
+    
     for (long long N = lowerBound; N <= upperBound; ++N) {
         possibleOrders.insert(N);
     }
+
     std::vector<long long> pointOrders;
     std::srand(std::time(0));
-    while (possibleOrders.size() != 1) {
-        long long x = lowerBound + std::rand() % (upperBound - lowerBound + 1);
+    while (possibleOrders.size() > 1) {
+        long long x = -p / 2 + std::rand() % p;
         long long y = sqrtMod(((x * x * x + a * x + b) % p + p) % p, p);
+        if  (y > p/2) y -= p;
         if (y == -1) continue;
-        Point P(x, y, a, b);
-        std::cout << '(' << P.x << ", " << P.y << ')' << '\n';
+        Point P(x, y, a, p);
         pointOrders.push_back(BSGS(P));
-        std::cout << '-' << BSGS(P) << '-' << '\n';
         long long LCM = findLCM(pointOrders);
         removeInvalidOrders(LCM, possibleOrders);
     }
@@ -407,8 +624,72 @@ long long findOrder(long long a, long long b, long long p) {
     
 }
 
-int main() {
-    Point P(-2, -4, 6, 11);
-    Point P1(-4, 5, 6, 11);
+std::vector<std::vector<Point>> findSimpleOrderGroups(long long a, long long b, long long p) {
+    std::vector<Point> curve = buildCurve(a, b, p);
+    std::vector<std::vector<Point>> simpleOrderGroups;
+    std::set<Point> gens;
+    for (auto point : curve) {
+        bool fl = false;
+        long long n = BSGS(point);
+        if (!isPrimeMillerRabin(n)) continue;
+        std::vector<Point> group;
+        Point cur{0, 0, 0, -1};
+        for (long long i = 0; i < n; ++i) {
+            group.push_back(cur);
+            cur = cur + point;
+            if (gens.find(cur) != gens.end())
+            {
+                fl = true;
+                break;
+            }
+        }
+        if (fl) continue;
+        gens.insert(point);
+        simpleOrderGroups.push_back(group);
+    }
+    return simpleOrderGroups;
+}
+
+Point randPoint(long long a, long long b, long long p) {
+    while (true) {
+        long long x = -p / 2 + std::rand() % p;
+        long long y = sqrtMod(((x * x * x + a * x + b) % p + p) % p, p);
+        if  (y > p/2) y -= p;
+        if (y == -1) continue;
+        Point P(x, y, a, p);
+        return P;
+    }
+}
+
+std::vector<long long> findPrimes(long long q) {
+    long long pow = 4 * (sqrt(q) + 1);
+    std::vector<long long> primes;
+    long long n = 0;
+    while (std::accumulate(primes.begin(), primes.end(), 1LL, std::multiplies<>()) < pow) {
+        for (long long i = n + 1; true; ++i) {
+            if (isPrimeFermat(i)) {
+                primes.push_back(i);
+                n = i;
+                break;
+            }
+        }
+    }
+    return primes;
+}
+
+Polynomial shufPoly(long long l) {
+    if (l == 0) return Polynomial();
+    if (l == 1) return Polynomial({1});
+    if (l == 2) return Polynomial({1, 0});
+    else return Polynomial({1, 0}) * shufPoly(l - 1) - shufPoly(l - 2);
+}
+
+long long frobenius(long long l, long long p, long long a, long long b) {
+    Polynomial poly = shufPoly(l);
+    Point P = randPoint(a, b, p);
     
+}
+
+int main() {
+
 }
