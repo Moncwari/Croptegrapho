@@ -155,7 +155,7 @@ class EllCurve:
                         break
 
         M = self.p + 1 + 2*m*k + l
-        fact_M = factor(M)
+        fact_M = sorted(factor(M))
         for p_i in fact_M:
             new_M = M//p_i
             if self.point_degree(self.P, new_M) == ("a", "a"):
@@ -189,6 +189,7 @@ class EllCurve:
         N = self.order()
         p_0 = ("a", "a")
         fact_N = factor(N)
+        #print(fact_N)
         list_fact_N = list(factor(N))
         point_in_subgroups = []
         for _ in range (len(fact_N)):
@@ -233,17 +234,17 @@ def to_sym_norm_F(a, p, key): # Перевод числа в простое ко
     return a
 
 def factor(a): # Разложение числа на различные простые множители
-    ans = set()
+    ans = []
     if a % 2 == 0:
-        ans.add(2)
         while a % 2 == 0:
             a //= 2
+            ans.append(2)
     d = 3
     while a > 1:
         if a % d == 0:
-            ans.add(d)
             while a % d == 0:
                 a //= d
+                ans.append(d)
         else:
             d += 2
     return ans
