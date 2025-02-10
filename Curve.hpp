@@ -15,22 +15,28 @@
 long long powerMod(long long a, long long b, long long p);
 
 long long findReverse(long long x, long long p) {
-  if (x >= p)
-    x %= p;
-  if (x < 0)
-    x += p;
-  return powerMod(x, p - 2, p);
+  if (x < 0) x = (x % p + p) % p;
+  long long a = x, b = p, u = 1, v = 0;
+  while (b != 0) {
+      long long t = a / b;
+      a -= t * b; std::swap(a, b);
+      u -= t * v; std::swap(u, v);
+  }
+  if (a != 1) return -1;
+  return (u % p + p) % p;
 }
-
 long long intPow(long long base, long long exp, long long p) {
   long long result = 1;
+  base %= p;
   while (exp > 0) {
-    if (exp & 1) {
+    if (exp % 2 == 1) {
       result *= base;
       result %= p;
     }
     base *= base;
-    exp >>= 1;
+    base %= p;
+    exp /= 2;
+    
   }
   return result;
 }
@@ -238,7 +244,9 @@ struct Point {
       : x(_x), y(_y), a(_a), p(_p) {}
 
   static void normalize(long long &x, long long p) {
-
+    x %= p;
+    x += p;
+    x %= p;
     if (x > (p - 1) / 2) {
       x -= p;
     }
@@ -254,9 +262,8 @@ struct Point {
       return *this;
     long long resX, resY;
     if (x == addend.x && y == addend.y) {
-      resX = ((intPow((3 * x * x + a) * findReverse(2 * y, p), 2, p) - 2 * x) % p +
-              p) %
-             p;
+      resX =
+          ((intPow((3 * x * x + a) * findReverse(2 * y, p), 2, p) - 2 * x) % p + p) % p;
       normalize(resX, p);
       resY = ((((3 * x * x + a) * findReverse(2 * y, p)) * (x - resX) - y) % p +
               p) %
@@ -337,10 +344,11 @@ static void normalize(long long &coord, long long p) {
 }
 
 /**
- * @brief Computes the number of points on an elliptic curve over a finite field.
+ * @brief Computes the number of points on an elliptic curve over a finite
+ * field.
  *
- * This function calculates the number of solutions (x, y) to the elliptic curve equation
- * y^2 = x^3 + ax + b over the finite field with prime order p.
+ * This function calculates the number of solutions (x, y) to the elliptic curve
+ * equation y^2 = x^3 + ax + b over the finite field with prime order p.
  *
  * @param a The coefficient "a" of the elliptic curve equation.
  * @param b The coefficient "b" of the elliptic curve equation.
@@ -349,14 +357,15 @@ static void normalize(long long &coord, long long p) {
  */
 long long nativeFindOrder(long long a, long long b, long long p) {
   long long count = 1; // Start with the neutral element (point at infinity)
-  
+
   // Iterate over all possible x values in the field F_p
   for (long long x = 0; x < p; ++x) {
     // Compute the right-hand side of the elliptic curve equation
-    long long squareY = (x * x * x + a * x + b) % p;
+    long long squareY = (intPow(x, 3, p) + a * x + b) % p;
     squareY = (squareY + p) % p; // Ensure non-negative result
 
-    // Determine if squareY is a quadratic residue modulo p using the Legendre symbol
+    // Determine if squareY is a quadratic residue modulo p using the Legendre
+    // symbol
     long long legendre = legendreSymbol(squareY, p);
 
     // If legendre is 1, there are two solutions for y
@@ -366,12 +375,13 @@ long long nativeFindOrder(long long a, long long b, long long p) {
     else if (legendre == 0)
       count += 1;
   }
-  
+
   return count; // Return the total number of points on the elliptic curve
 }
 
 /**
- * @brief Computes the order of a point on an elliptic curve using the Baby-Step Giant-Step (BSGS) algorithm.
+ * @brief Computes the order of a point on an elliptic curve using the Baby-Step
+ * Giant-Step (BSGS) algorithm.
  *
  * @param P The point on the elliptic curve whose order is to be determined.
  * @return The order of the point P.
@@ -445,8 +455,8 @@ exit_loop:
 }
 
 /**
- * @brief Builds the elliptic curve given by the Weierstrass form y^2 = x^3 + ax + b
- * over the prime field F_p.
+ * @brief Builds the elliptic curve given by the Weierstrass form y^2 = x^3 + ax
+ * + b over the prime field F_p.
  *
  * @param a The coefficient "a" of the elliptic curve equation.
  * @param b The coefficient "b" of the elliptic curve equation.
@@ -565,6 +575,7 @@ long long findOrder(long long a, long long b, long long p) {
 
     // Remove any orders that are not divisible by the LCM
     removeInvalidOrders(LCM, possibleOrders);
+    std::cout << possibleOrders.size() << std::endl;
   }
 
   // Return the only element in the set of possible orders
@@ -583,58 +594,44 @@ long long findOrder(long long a, long long b, long long p) {
  */
 std::vector<std::vector<Point>> findSimpleOrderGroups(long long a, long long b,
                                                       long long p) {
-  // Build the elliptic curve
-  std::vector<Point> curve = buildCurve(a, b, p);
 
-  // Initialize the vector of simple order groups
   std::vector<std::vector<Point>> simpleOrderGroups;
-
-  // Initialize the set of generators
   std::set<Point> gens;
 
-  // Iterate over the points on the elliptic curve
-  for (auto point : curve) {
+  for (long long x = -p / 2; x < p / 2; ++x) {
+    long long squareY = (intPow(x, 3, p) + a * x + b) % p;
+    squareY = (squareY + p) % p;
+    long long s = sqrtMod(squareY, p);
+    if (s == -1) {
+      continue;
+    }
+    normalize(s, p);
+    Point point = Point(x, s, a, p);
     bool fl = false;
-    // Calculate the order of the point
     long long n = BSGS(point);
 
-    // Check if the order is prime
-    if (!isPrimeFermat(n))
-      continue;
+    if (isPrimeFermat(n)) {
+      std::vector<Point> group;
+      Point zero{0, 0, 0, -1};
+      Point cur = zero;
+      for (long long i = 0; i < n; ++i) {
+        group.push_back(cur);
+        cur = cur + point;
 
-    // Initialize the vector of points in the group
-    std::vector<Point> group;
+        if (gens.find(cur) != gens.end()) {
+          fl = true;
+          break;
+        }
+      }
+      if (!fl) {
+        // Add the current point to the set of generators
+        gens.insert(point);
 
-    // Initialize the current point to the neutral element
-    Point zero{0, 0, 0, -1};
-    Point cur = zero;
-    // Iterate over the group
-    for (long long i = 0; i < n; ++i) {
-      // Add the current point to the group
-      group.push_back(cur);
-
-      // Calculate the next point in the group
-      cur = cur + point;
-
-      // Check if the current point is a generator
-      if (gens.find(cur) != gens.end()) {
-        // If it is, break the loop
-        fl = true;
-        break;
+        // Add the group to the vector of simple order groups
+        simpleOrderGroups.push_back(group);
       }
     }
-
-    // If the loop was broken, skip to the next iteration
-    if (fl)
-      continue;
-
-    // Add the current point to the set of generators
-    gens.insert(point);
-
-    // Add the group to the vector of simple order groups
-    simpleOrderGroups.push_back(group);
   }
-
   // Return the vector of simple order groups
   return simpleOrderGroups;
 }
