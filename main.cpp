@@ -1,4 +1,4 @@
-#include "Curve.hpp"
+#include "Curve.h"
 
 #define ll long long
 
@@ -13,7 +13,7 @@ int main() {
     clock_t start = clock();
     if (mode == 0) {
         std::cout << "Order of curve: " << findOrder(a, b, p) << std::endl;
-        std::cout << "Time: " << (clock() - start) / CLOCKS_PER_SEC << std::endl;
+        std::cout << "Time: " << (clock() - start) * 1000 / CLOCKS_PER_SEC << " ms" << std::endl;
     } else if (mode == 1) {
         std::vector<Point> curve = buildCurve(a, b, p);
         int i = 0;
@@ -31,7 +31,7 @@ int main() {
     } else if (mode == 2) {
         std::cout << "Enter x: "; ll x; std::cin >> x;
         std::cout << "Enter y: "; ll y; std::cin >> y; normalize(y, p);
-        ll y1 = sqrtMod(((intPow(x, 3, p) % p + a * x + b) % p + p) % p, p);
+        ll y1 = sqrtMod(((powerMod(x, 3, p) % p + a * x + b) % p + p) % p, p);
         normalize(y1, p);
         if (y != y1 && y != -y1) {
             std::cout << "No such point" << std::endl;
