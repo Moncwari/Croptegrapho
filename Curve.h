@@ -428,7 +428,6 @@ std::vector<Point> buildCurve(long long a, long long b, long long p) {
   return points;
 }
 
-
 long long findOrder(long long a, long long b, long long p) {
   long long lowerBound =
       static_cast<long long>(std::ceil(p + 1 - 2 * std::sqrt(p)));
@@ -517,41 +516,45 @@ std::vector<std::vector<Point>> findSimpleOrderGroups(long long a, long long b,
   return simpleOrderGroups;
 }
 
-
 Point randPoint(long long a, long long b, long long p) {
   while (true) {
-      long long x = -p / 2 + std::rand() % p;
-      long long y = sqrtMod((powerMod(x, 3, p) + a * x + b), p);
-      normalize(y, p);
-      if (y == -1) continue;
-      Point P(x, y, a, p);
-      return P;
+    long long x = -p / 2 + std::rand() % p;
+    long long y = sqrtMod((powerMod(x, 3, p) + a * x + b), p);
+    normalize(y, p);
+    if (y == -1)
+      continue;
+    Point P(x, y, a, p);
+    return P;
   }
 }
 
-std::vector<std::vector<Point>> findSimpleOrderGroups1(long long a, long long b, long long p) {
-  std::cout << "&*((*(&*)))\n";
-    long long order = findOrder(a, b, p);
-    Point P = randPoint(a, b, p);
-    while (BSGS(P) != order) {
-        P = randPoint(a, b, p);
-    }
-    std::vector<long long> factors = factorize(order);
-    std::vector<std::vector<Point>> groups;
-    std::unordered_map<int, int> freq;
-    for (long long f : factors) freq[f]++;
-    std::vector<int> ufactors;
-    for (int x : factors) {
-        if (freq[x] == 1)
-            ufactors.push_back(x);
-    }
-    for (int x : ufactors) {
-      Point gen = P * (order / x);
-      Point p = gen;
-      std::vector<Point> subgroup;
-      do {
-        subgroup.push_back(p);
-        p = p + gen;
-      } while (!(p == Point()));
-    }
+std::vector<std::vector<Point>> findSimpleOrderGroups1(long long a, long long b,
+                                                       long long p) {
+  long long order = findOrder(a, b, p);
+  Point P = randPoint(a, b, p);
+  while (BSGS(P) != order) {
+    P = randPoint(a, b, p);
+  }
+  std::vector<long long> factors = factorize(order);
+  std::vector<std::vector<Point>> groups;
+  std::unordered_map<int, int> freq;
+  for (long long f : factors)
+    freq[f]++;
+  std::vector<int> ufactors;
+  for (int x : factors) {
+    if (freq[x] == 1)
+      ufactors.push_back(x);
+  }
+  for (int x : ufactors) {
+    Point gen = P * (order / x);
+    Point p = gen;
+    std::vector<Point> subgroup;
+    subgroup.push_back(Point());
+    do {
+      subgroup.push_back(p);
+      p = p + gen;
+    } while (!(p == Point()));
+    groups.push_back(subgroup);
+  }
+  return groups;
 }

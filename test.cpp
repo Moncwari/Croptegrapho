@@ -4,7 +4,7 @@ int main() {
     
     long long p = 13, a = 2, b = 2;
     clock_t start = clock();
-    auto groups = findSimpleOrderGroups(a, b, p);
+    auto groups = findSimpleOrderGroups1(a, b, p);
     for (auto group : groups) {
         for (auto point : group) {
             std::cout << point << " ";
