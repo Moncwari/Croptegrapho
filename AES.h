@@ -9,6 +9,7 @@ using namespace std;
 
 
 void SubBytes(array<array<uint8_t, 4>, 4>& state);
+void InvSubBytes(array<array<uint8_t, 4>, 4>& state);
 void ShiftRows(array<array<uint8_t, 4>, 4>& state);
 void MixColumns(array<array<uint8_t, 4>, 4>& state);
 void InvMixColumns(array<array<uint8_t, 4>, 4>& state);
@@ -50,7 +51,7 @@ const uint8_t SBox[256] = {
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f,
     0xb0, 0x54, 0xbb, 0x16};
 
-const uint8_t InvSbox[256] = {
+const uint8_t InvSBox[256] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e,
     0x81, 0xf3, 0xd7, 0xfb, 0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87,
     0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb, 0x54, 0x7b, 0x94, 0x32,
@@ -90,6 +91,14 @@ void SubBytes(array<array<uint8_t, 4>, 4>& state) {
     }
 }
 
+void InvSubBytes(array<array<uint8_t, 4>, 4>& state) {
+    for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
+            state[i][j] = InvSBox[state[i][j]];
+        }
+    }
+}
+
 void ShiftRows(array<array<uint8_t, 4>, 4>& state) {
     for (int i = 1; i < 4; i++) {
         array<uint8_t, 4> temp = state[i];
@@ -99,90 +108,22 @@ void ShiftRows(array<array<uint8_t, 4>, 4>& state) {
     }
 }
 
-void MixColumns(array<array<uint8_t, 4>, 4>& state) {
-    for (int i = 0; i < 4; i++) {
-        uint8_t a[4], b[4];
+void InvShiftRows(array<array<uint8_t, 4>, 4>& state) {
+    for (int i = 1; i < 4; i++) {
+        array<uint8_t, 4> temp = state[i];
         for (int j = 0; j < 4; j++) {
-            a[j] = state[j][i];
-            b[j] = (state[j][i] << 1) ^ (0x1B & (state[j][i] >> 7));
+            state[i][(j + i) % 4] = temp[j];
         }
-        state[0][i] = b[0] ^ a[1] ^ b[1] ^ a[2] ^ a[3];
-        state[1][i] = a[0] ^ b[1] ^ a[2] ^ b[2] ^ a[3];
-        state[2][i] = a[0] ^ a[1] ^ b[2] ^ a[3] ^ b[3];
-        state[3][i] = a[0] ^ b[0] ^ a[1] ^ a[2] ^ b[3];
     }
 }
 
-void InvMixColumns(array<array<uint8_t, 4>, 4>& state) {
+void AddRoundKey(array<array<uint8_t, 4>, 4>& state, const vector<uint32_t>& roundKeys, int round) {
     for (int i = 0; i < 4; i++) {
-        uint8_t a[4];
+        uint32_t keyColumn = roundKeys[round * Nb + i];
         for (int j = 0; j < 4; j++) {
-            a[j] = state[j][i];
+            state[j][i] ^= (keyColumn >> (8 * (3 - j))) & 0xFF;
         }
-        state[0][i] = (0x0e * a[0]) ^ (0x0b * a[1]) ^ (0x0d * a[2]) ^ (0x09 * a[3]);
-        state[1][i] = (0x09 * a[0]) ^ (0x0e * a[1]) ^ (0x0b * a[2]) ^ (0x0d * a[3]);
-        state[2][i] = (0x0d * a[0]) ^ (0x09 * a[1]) ^ (0x0e * a[2]) ^ (0x0b * a[3]);
-        state[3][i] = (0x0b * a[0]) ^ (0x0d * a[1]) ^ (0x09 * a[2]) ^ (0x0e * a[3]);
     }
-}
-
-// Функция для преобразования слова в Key Expansion
-uint32_t SubWord(uint32_t word) {
-    return (SBox[(word >> 24) & 0xFF] << 24) |
-           (SBox[(word >> 16) & 0xFF] << 16) |
-           (SBox[(word >> 8) & 0xFF] << 8) |
-           (SBox[word & 0xFF]);
-}
-
-uint32_t RotWord(uint32_t word) {
-    return (word << 8) | (word >> 24);
-}
-
-// Функция Key Expansion
-void KeyExpansion(const vector<uint8_t>& key, vector<uint32_t>& roundKeys) {
-    int i = 0;
-    while (i < Nk) {
-        roundKeys[i] = (key[4 * i] << 24) | (key[4 * i + 1] << 16) | (key[4 * i + 2] << 8) | key[4 * i + 3];
-        i++;
-    }
-    
-    while (i < Nb * (Nr + 1)) {
-        uint32_t temp = roundKeys[i - 1];
-        if (i % Nk == 0) {
-            temp = SubWord(RotWord(temp)) ^ Rcon[(i / Nk) - 1];
-        } else if (Nk > 6 && i % Nk == 4) {
-            temp = SubWord(temp);
-        }
-        roundKeys[i] = roundKeys[i - Nk] ^ temp;
-        i++;
-    }
-}
-
-
-// Функция AddRoundKey
-void AddRoundKey(array<array<uint8_t, 4>, 4> &state,
-                 const vector<uint32_t> &roundKeys, int round) {
-  for (int i = 0; i < 4; i++) {
-    uint32_t keyColumn = roundKeys[round * Nb + i];
-    for (int j = 0; j < 4; j++) {
-      state[j][i] ^= (keyColumn >> (8 * (3 - j))) & 0xFF;
-    }
-  }
-}
-
-void SetKeySize(int keySize) {
-  if (keySize == 128) {
-    Nk = 4;
-    Nr = 10;
-  } else if (keySize == 192) {
-    Nk = 6;
-    Nr = 12;
-  } else if (keySize == 256) {
-    Nk = 8;
-    Nr = 14;
-  } else {
-    throw invalid_argument("Неподдерживаемый размер ключа");
-  }
 }
 
 void EncryptBlock(array<array<uint8_t, 4>, 4>& state, const vector<uint32_t>& roundKeys) {
@@ -190,10 +131,48 @@ void EncryptBlock(array<array<uint8_t, 4>, 4>& state, const vector<uint32_t>& ro
     for (int round = 1; round < Nr; round++) {
         SubBytes(state);
         ShiftRows(state);
-        MixColumns(state);
         AddRoundKey(state, roundKeys, round);
     }
     SubBytes(state);
     ShiftRows(state);
     AddRoundKey(state, roundKeys, Nr);
 }
+
+void DecryptBlock(array<array<uint8_t, 4>, 4>& state, const vector<uint32_t>& roundKeys) {
+    AddRoundKey(state, roundKeys, Nr);
+    for (int round = Nr - 1; round > 0; round--) {
+        InvShiftRows(state);
+        InvSubBytes(state);
+        AddRoundKey(state, roundKeys, round);
+    }
+    InvShiftRows(state);
+    InvSubBytes(state);
+    AddRoundKey(state, roundKeys, 0);
+}
+
+void SetKeySize(int keySize) {
+    if (keySize == 128) {
+        Nk = 4;
+        Nr = 10;
+    } else if (keySize == 192) {
+        Nk = 6;
+        Nr = 12;
+    } else if (keySize == 256) {
+        Nk = 8;
+        Nr = 14;
+    } else {
+        throw invalid_argument("Неподдерживаемый размер ключа");
+    }
+}
+
+void PrintState(const array<array<uint8_t, 4>, 4>& state) {
+    for (const auto& row : state) {
+        for (uint8_t val : row) {
+            cout << hex << (int)val << " ";
+        }
+        cout << endl;
+    }
+    cout << endl;
+}
+
+
