@@ -2,18 +2,18 @@
 
 AES::AES(const AESKeyLength keyLength) {
   switch (keyLength) {
-    case AESKeyLength::AES_128:
-      this->Nk = 4;
-      this->Nr = 10;
-      break;
-    case AESKeyLength::AES_192:
-      this->Nk = 6;
-      this->Nr = 12;
-      break;
-    case AESKeyLength::AES_256:
-      this->Nk = 8;
-      this->Nr = 14;
-      break;
+  case AESKeyLength::AES_128:
+    this->Nk = 4;
+    this->Nr = 10;
+    break;
+  case AESKeyLength::AES_192:
+    this->Nk = 6;
+    this->Nr = 12;
+    break;
+  case AESKeyLength::AES_256:
+    this->Nk = 8;
+    this->Nr = 14;
+    break;
   }
 }
 
@@ -210,7 +210,7 @@ void AES::SubBytes(unsigned char state[4][Nb]) {
 }
 
 void AES::ShiftRow(unsigned char state[4][Nb], unsigned int i,
-                   unsigned int n)  // shift row i on n positions
+                   unsigned int n) // shift row i on n positions
 {
   unsigned char tmp[Nb];
   for (unsigned int j = 0; j < Nb; j++) {
@@ -225,7 +225,7 @@ void AES::ShiftRows(unsigned char state[4][Nb]) {
   ShiftRow(state, 3, 3);
 }
 
-unsigned char AES::xtime(unsigned char b)  // multiply on x
+unsigned char AES::xtime(unsigned char b) // multiply on x
 {
   return (b << 1) ^ (((b >> 7) & 1) * 0x1b);
 }

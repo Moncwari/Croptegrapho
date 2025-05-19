@@ -83,8 +83,8 @@ void fileCleaning(std::string filename) {
 }
 
 void EncryptFromFileECB(const std::string &filenamein,
-                            const std::string &filenameout,
-                            const std::vector<unsigned char> &key, int len) {
+                        const std::string &filenameout,
+                        const std::vector<unsigned char> &key, int len) {
   fileCleaning(filenameout);
   AES aes(AESKeyLength::AES_128);
   if (len == 192)
@@ -114,8 +114,8 @@ void EncryptFromFileECB(const std::string &filenamein,
 }
 
 void DecryptFromFileECB(const std::string &filenamein,
-                            const std::string &filenameout,
-                            const std::vector<unsigned char> &key, int len) {
+                        const std::string &filenameout,
+                        const std::vector<unsigned char> &key, int len) {
   fileCleaning(filenameout);
   AES aes(AESKeyLength::AES_128);
   if (len == 192)
