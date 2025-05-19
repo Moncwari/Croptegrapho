@@ -77,7 +77,6 @@ def S(V):
 def X(k, a):
     return bytes([k[i] ^ a[i] for i in range(64)])
 
-# Дальше идут K_array, E, GN, Hash и main (будет на следующем сообщении, чтобы не обрезать код!)
 
 def must_hex_decode(s):
     return binascii.unhexlify(s)
