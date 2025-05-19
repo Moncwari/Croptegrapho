@@ -1,4 +1,3 @@
-# Cryptography-Galois-Fields
+# Cryptography
 
-branch 3rd-KR for 3rd Cryptography KR
-branch Galois for 1st Cryptography PR
+Here is some crypto functions for cryptography on Python and C++
