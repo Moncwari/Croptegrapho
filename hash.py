@@ -1,6 +1,65 @@
 import struct
 import binascii
 import sys
+from functools import lru_cache
+import numpy as np
+
+
+# Вынесенные таблицы
+
+# Таблица подстановки для S-преобразования
+Pi = [
+    252, 238, 221, 17, 207, 110, 49, 22, 251, 196, 250, 218, 35, 197, 4, 77,
+    233, 119, 240, 219, 147, 46, 153, 186, 23, 54, 241, 187, 20, 205, 95, 193,
+    249, 24, 101, 90, 226, 92, 239, 33, 129, 28, 60, 66, 139, 1, 142, 79,
+    5, 132, 2, 174, 227, 106, 143, 160, 6, 11, 237, 152, 127, 212, 211, 31,
+    235, 52, 44, 81, 234, 200, 72, 171, 242, 42, 104, 162, 253, 58, 206, 204,
+    181, 112, 14, 86, 8, 12, 118, 18, 191, 114, 19, 71, 156, 183, 93, 135,
+    21, 161, 150, 41, 16, 123, 154, 199, 243, 145, 120, 111, 157, 158, 178, 177,
+    50, 117, 25, 61, 255, 53, 138, 126, 109, 84, 198, 128, 195, 189, 13, 87,
+    223, 245, 36, 169, 62, 168, 67, 201, 215, 121, 214, 246, 124, 34, 185, 3,
+    224, 15, 236, 222, 122, 148, 176, 188, 220, 232, 40, 80, 78, 51, 10, 74,
+    167, 151, 96, 115, 30, 0, 98, 68, 26, 184, 56, 130, 100, 159, 38, 65,
+    173, 69, 70, 146, 39, 94, 85, 47, 140, 163, 165, 125, 105, 213, 149, 59,
+    7, 88, 179, 64, 134, 172, 29, 247, 48, 55, 107, 228, 136, 217, 231, 137,
+    225, 27, 131, 73, 76, 63, 248, 254, 141, 83, 170, 144, 202, 216, 133, 97,
+    32, 113, 103, 164, 45, 43, 9, 91, 203, 155, 37, 208, 190, 229, 108, 82,
+    89, 166, 116, 210, 230, 244, 180, 192, 209, 102, 175, 194, 57, 75, 99, 182,
+]
+
+# Таблица перестановки для P-преобразования
+T = [
+    0, 8, 16, 24, 32, 40, 48, 56, 1, 9, 17, 25, 33, 41, 49, 57,
+    2, 10, 18, 26, 34, 42, 50, 58, 3, 11, 19, 27, 35, 43, 51, 59,
+    4, 12, 20, 28, 36, 44, 52, 60, 5, 13, 21, 29, 37, 45, 53, 61,
+    6, 14, 22, 30, 38, 46, 54, 62, 7, 15, 23, 31, 39, 47, 55, 63,
+]
+
+# Таблица линейного преобразования (L)
+Byte_matrix = [
+    0x8e20faa72ba0b470, 0x47107ddd9b505a38, 0xad08b0e0c3282d1c, 0xd8045870ef14980e,
+    0x6c022c38f90a4c07, 0x3601161cf205268d, 0x1b8e0b0e798c13c8, 0x83478b07b2468764,
+    0xa011d380818e8f40, 0x5086e740ce47c920, 0x2843fd2067adea10, 0x14aff010bdd87508,
+    0x0ad97808d06cb404, 0x05e23c0468365a02, 0x8c711e02341b2d01, 0x46b60f011a83988e,
+    0x90dab52a387ae76f, 0x486dd4151c3dfdb9, 0x24b86a840e90f0d2, 0x125c354207487869,
+    0x092e94218d243cba, 0x8a174a9ec8121e5d, 0x4585254f64090fa0, 0xaccc9ca9328a8950,
+    0x9d4df05d5f661451, 0xc0a878a0a1330aa6, 0x60543c50de970553, 0x302a1e286fc58ca7,
+    0x18150f14b9ec46dd, 0x0c84890ad27623e0, 0x0642ca05693b9f70, 0x0321658cba93c138,
+    0x86275df09ce8aaa8, 0x439da0784e745554, 0xafc0503c273aa42a, 0xd960281e9d1d5215,
+    0xe230140fc0802984, 0x71180a8960409a42, 0xb60c05ca30204d21, 0x5b068c651810a89e,
+    0x456c34887a3805b9, 0xac361a443d1c8cd2, 0x561b0d22900e4669, 0x2b838811480723ba,
+    0x9bcf4486248d9f5d, 0xc3e9224312c8c1a0, 0xeffa11af0964ee50, 0xf97d86d98a327728,
+    0xe4fa2054a80b329c, 0x727d102a548b194e, 0x39b008152acb8227, 0x9258048415eb419d,
+    0x492c024284fbaec0, 0xaa16012142f35760, 0x550b8e9e21f7a530, 0xa48b474f9ef5dc18,
+    0x70a6a56e2440598e, 0x3853dc371220a247, 0x1ca76e95091051ad, 0x0edd37c48a08a6d8,
+    0x07e095624504536c, 0x8d70c431ac02a736, 0xc83862965601dd1b, 0x641c314b2b8ee083,
+]
+
+Pi_np = np.array(Pi, dtype=np.uint8)
+T_np = np.array(T, dtype=np.uint8)
+Byte_matrix_np = np.array(Byte_matrix, dtype=np.uint64)
+bit_masks_np = np.array([1 << (63 - i) for i in range(64)], dtype=np.uint64)
+
 
 def vec_n(z, n):
     return [(z >> i) & 1 for i in range(n)]
@@ -14,69 +73,157 @@ def int_n(vec):
 def get_bit(b, pos):
     return (b >> pos) & 1
 
-def L(V):
-    Byte_matrix = [
-        0x8e20faa72ba0b470, 0x47107ddd9b505a38, 0xad08b0e0c3282d1c, 0xd8045870ef14980e,
-        0x6c022c38f90a4c07, 0x3601161cf205268d, 0x1b8e0b0e798c13c8, 0x83478b07b2468764,
-        0xa011d380818e8f40, 0x5086e740ce47c920, 0x2843fd2067adea10, 0x14aff010bdd87508,
-        0x0ad97808d06cb404, 0x05e23c0468365a02, 0x8c711e02341b2d01, 0x46b60f011a83988e,
-        0x90dab52a387ae76f, 0x486dd4151c3dfdb9, 0x24b86a840e90f0d2, 0x125c354207487869,
-        0x092e94218d243cba, 0x8a174a9ec8121e5d, 0x4585254f64090fa0, 0xaccc9ca9328a8950,
-        0x9d4df05d5f661451, 0xc0a878a0a1330aa6, 0x60543c50de970553, 0x302a1e286fc58ca7,
-        0x18150f14b9ec46dd, 0x0c84890ad27623e0, 0x0642ca05693b9f70, 0x0321658cba93c138,
-        0x86275df09ce8aaa8, 0x439da0784e745554, 0xafc0503c273aa42a, 0xd960281e9d1d5215,
-        0xe230140fc0802984, 0x71180a8960409a42, 0xb60c05ca30204d21, 0x5b068c651810a89e,
-        0x456c34887a3805b9, 0xac361a443d1c8cd2, 0x561b0d22900e4669, 0x2b838811480723ba,
-        0x9bcf4486248d9f5d, 0xc3e9224312c8c1a0, 0xeffa11af0964ee50, 0xf97d86d98a327728,
-        0xe4fa2054a80b329c, 0x727d102a548b194e, 0x39b008152acb8227, 0x9258048415eb419d,
-        0x492c024284fbaec0, 0xaa16012142f35760, 0x550b8e9e21f7a530, 0xa48b474f9ef5dc18,
-        0x70a6a56e2440598e, 0x3853dc371220a247, 0x1ca76e95091051ad, 0x0edd37c48a08a6d8,
-        0x07e095624504536c, 0x8d70c431ac02a736, 0xc83862965601dd1b, 0x641c314b2b8ee083,
-    ]
+# def L(V):
+#     Byte_matrix = [
+#         0x8e20faa72ba0b470, 0x47107ddd9b505a38, 0xad08b0e0c3282d1c, 0xd8045870ef14980e,
+#         0x6c022c38f90a4c07, 0x3601161cf205268d, 0x1b8e0b0e798c13c8, 0x83478b07b2468764,
+#         0xa011d380818e8f40, 0x5086e740ce47c920, 0x2843fd2067adea10, 0x14aff010bdd87508,
+#         0x0ad97808d06cb404, 0x05e23c0468365a02, 0x8c711e02341b2d01, 0x46b60f011a83988e,
+#         0x90dab52a387ae76f, 0x486dd4151c3dfdb9, 0x24b86a840e90f0d2, 0x125c354207487869,
+#         0x092e94218d243cba, 0x8a174a9ec8121e5d, 0x4585254f64090fa0, 0xaccc9ca9328a8950,
+#         0x9d4df05d5f661451, 0xc0a878a0a1330aa6, 0x60543c50de970553, 0x302a1e286fc58ca7,
+#         0x18150f14b9ec46dd, 0x0c84890ad27623e0, 0x0642ca05693b9f70, 0x0321658cba93c138,
+#         0x86275df09ce8aaa8, 0x439da0784e745554, 0xafc0503c273aa42a, 0xd960281e9d1d5215,
+#         0xe230140fc0802984, 0x71180a8960409a42, 0xb60c05ca30204d21, 0x5b068c651810a89e,
+#         0x456c34887a3805b9, 0xac361a443d1c8cd2, 0x561b0d22900e4669, 0x2b838811480723ba,
+#         0x9bcf4486248d9f5d, 0xc3e9224312c8c1a0, 0xeffa11af0964ee50, 0xf97d86d98a327728,
+#         0xe4fa2054a80b329c, 0x727d102a548b194e, 0x39b008152acb8227, 0x9258048415eb419d,
+#         0x492c024284fbaec0, 0xaa16012142f35760, 0x550b8e9e21f7a530, 0xa48b474f9ef5dc18,
+#         0x70a6a56e2440598e, 0x3853dc371220a247, 0x1ca76e95091051ad, 0x0edd37c48a08a6d8,
+#         0x07e095624504536c, 0x8d70c431ac02a736, 0xc83862965601dd1b, 0x641c314b2b8ee083,
+#     ]
 
+#     L_out = bytearray(64)
+#     for l in range(8):
+#         b = int.from_bytes(V[l*8:(l+1)*8], 'big')
+#         c = 0
+#         for i in range(64):
+#             if (b >> (63 - i)) & 1:
+#                 c ^= Byte_matrix[i]
+#         L_out[l*8:(l+1)*8] = c.to_bytes(8, 'big')
+#     return bytes(L_out)
+
+# def P(V):
+#     T = [
+#         0, 8, 16, 24, 32, 40, 48, 56, 1, 9, 17, 25, 33, 41, 49, 57,
+#         2, 10, 18, 26, 34, 42, 50, 58, 3, 11, 19, 27, 35, 43, 51, 59,
+#         4, 12, 20, 28, 36, 44, 52, 60, 5, 13, 21, 29, 37, 45, 53, 61,
+#         6, 14, 22, 30, 38, 46, 54, 62, 7, 15, 23, 31, 39, 47, 55, 63,
+#     ]
+#     return bytes(V[t] for t in T)
+
+# def S(V):
+#     Pi = [
+#         252, 238, 221, 17, 207, 110, 49, 22, 251, 196, 250, 218, 35, 197, 4, 77,
+#         233, 119, 240, 219, 147, 46, 153, 186, 23, 54, 241, 187, 20, 205, 95, 193,
+#         249, 24, 101, 90, 226, 92, 239, 33, 129, 28, 60, 66, 139, 1, 142, 79,
+#         5, 132, 2, 174, 227, 106, 143, 160, 6, 11, 237, 152, 127, 212, 211, 31,
+#         235, 52, 44, 81, 234, 200, 72, 171, 242, 42, 104, 162, 253, 58, 206, 204,
+#         181, 112, 14, 86, 8, 12, 118, 18, 191, 114, 19, 71, 156, 183, 93, 135,
+#         21, 161, 150, 41, 16, 123, 154, 199, 243, 145, 120, 111, 157, 158, 178, 177,
+#         50, 117, 25, 61, 255, 53, 138, 126, 109, 84, 198, 128, 195, 189, 13, 87,
+#         223, 245, 36, 169, 62, 168, 67, 201, 215, 121, 214, 246, 124, 34, 185, 3,
+#         224, 15, 236, 222, 122, 148, 176, 188, 220, 232, 40, 80, 78, 51, 10, 74,
+#         167, 151, 96, 115, 30, 0, 98, 68, 26, 184, 56, 130, 100, 159, 38, 65,
+#         173, 69, 70, 146, 39, 94, 85, 47, 140, 163, 165, 125, 105, 213, 149, 59,
+#         7, 88, 179, 64, 134, 172, 29, 247, 48, 55, 107, 228, 136, 217, 231, 137,
+#         225, 27, 131, 73, 76, 63, 248, 254, 141, 83, 170, 144, 202, 216, 133, 97,
+#         32, 113, 103, 164, 45, 43, 9, 91, 203, 155, 37, 208, 190, 229, 108, 82,
+#         89, 166, 116, 210, 230, 244, 180, 192, 209, 102, 175, 194, 57, 75, 99, 182,
+#     ]
+#     return bytes(Pi[b] for b in V)
+
+# def S(V):
+#     return bytes(Pi[b] for b in V)
+
+def S(V: bytes) -> bytes:
+    return Pi_np[np.frombuffer(V, dtype=np.uint8)].tobytes()
+
+
+# def P(V):
+#     return bytes(V[t] for t in T)
+
+def P(V: bytes) -> bytes:
+    return np.frombuffer(V, dtype=np.uint8)[T_np].tobytes()
+
+
+bit_masks = [1 << (63 - i) for i in range(64)]
+
+# def L(V):
+#     L_out = bytearray(64)
+#     for l in range(8):
+#         b = int.from_bytes(V[l*8:(l+1)*8], 'big')
+#         c = 0
+#         for i in range(64):
+#             if b & bit_masks[i]:
+#                 c ^= Byte_matrix[i]
+#         L_out[l*8:(l+1)*8] = c.to_bytes(8, 'big')
+#     return bytes(L_out)
+
+def L(V: bytes) -> bytes:
+    V_arr = np.frombuffer(V, dtype=np.uint8).reshape((8, 8))
+    L_out = bytearray(64)
+    for l in range(8):
+        b = int.from_bytes(V_arr[l], 'big')
+        c = 0
+        for i in range(64):
+            if b & int(bit_masks_np[i]):
+                c ^= int(Byte_matrix_np[i])
+        L_out[l*8:(l+1)*8] = c.to_bytes(8, 'big')
+    return bytes(L_out)
+
+
+
+@lru_cache(maxsize=None)
+def S_cached(V: bytes) -> bytes:
+    return bytes(Pi[b] for b in V)
+
+@lru_cache(maxsize=None)
+def P_cached(V: bytes) -> bytes:
+    return bytes(V[t] for t in T)
+
+@lru_cache(maxsize=None)
+def L_cached(V: bytes) -> bytes:
     L_out = bytearray(64)
     for l in range(8):
         b = int.from_bytes(V[l*8:(l+1)*8], 'big')
         c = 0
         for i in range(64):
-            if (b >> (63 - i)) & 1:
+            if b & bit_masks[i]:
                 c ^= Byte_matrix[i]
         L_out[l*8:(l+1)*8] = c.to_bytes(8, 'big')
     return bytes(L_out)
 
-def P(V):
-    T = [
-        0, 8, 16, 24, 32, 40, 48, 56, 1, 9, 17, 25, 33, 41, 49, 57,
-        2, 10, 18, 26, 34, 42, 50, 58, 3, 11, 19, 27, 35, 43, 51, 59,
-        4, 12, 20, 28, 36, 44, 52, 60, 5, 13, 21, 29, 37, 45, 53, 61,
-        6, 14, 22, 30, 38, 46, 54, 62, 7, 15, 23, 31, 39, 47, 55, 63,
-    ]
-    return bytes(V[t] for t in T)
+# @lru_cache(maxsize=None)
+# def SPL_cached(V: bytes) -> bytes:
+#     return L_cached(P_cached(S_cached(V)))
 
-def S(V):
-    Pi = [
-        252, 238, 221, 17, 207, 110, 49, 22, 251, 196, 250, 218, 35, 197, 4, 77,
-        233, 119, 240, 219, 147, 46, 153, 186, 23, 54, 241, 187, 20, 205, 95, 193,
-        249, 24, 101, 90, 226, 92, 239, 33, 129, 28, 60, 66, 139, 1, 142, 79,
-        5, 132, 2, 174, 227, 106, 143, 160, 6, 11, 237, 152, 127, 212, 211, 31,
-        235, 52, 44, 81, 234, 200, 72, 171, 242, 42, 104, 162, 253, 58, 206, 204,
-        181, 112, 14, 86, 8, 12, 118, 18, 191, 114, 19, 71, 156, 183, 93, 135,
-        21, 161, 150, 41, 16, 123, 154, 199, 243, 145, 120, 111, 157, 158, 178, 177,
-        50, 117, 25, 61, 255, 53, 138, 126, 109, 84, 198, 128, 195, 189, 13, 87,
-        223, 245, 36, 169, 62, 168, 67, 201, 215, 121, 214, 246, 124, 34, 185, 3,
-        224, 15, 236, 222, 122, 148, 176, 188, 220, 232, 40, 80, 78, 51, 10, 74,
-        167, 151, 96, 115, 30, 0, 98, 68, 26, 184, 56, 130, 100, 159, 38, 65,
-        173, 69, 70, 146, 39, 94, 85, 47, 140, 163, 165, 125, 105, 213, 149, 59,
-        7, 88, 179, 64, 134, 172, 29, 247, 48, 55, 107, 228, 136, 217, 231, 137,
-        225, 27, 131, 73, 76, 63, 248, 254, 141, 83, 170, 144, 202, 216, 133, 97,
-        32, 113, 103, 164, 45, 43, 9, 91, 203, 155, 37, 208, 190, 229, 108, 82,
-        89, 166, 116, 210, 230, 244, 180, 192, 209, 102, 175, 194, 57, 75, 99, 182,
-    ]
-    return bytes(Pi[b] for b in V)
+@lru_cache(maxsize=None)
+def SPL_cached(V: bytes) -> bytes:
+    return L(P(S(V)))
 
-def X(k, a):
-    return bytes([k[i] ^ a[i] for i in range(64)])
 
+# def L(V):
+#     L_out = bytearray(64)
+#     for l in range(8):
+#         b = int.from_bytes(V[l*8:(l+1)*8], 'big')
+#         c = 0
+#         for i in range(64):
+#             if (b >> (63 - i)) & 1:
+#                 c ^= Byte_matrix[i]
+#         L_out[l*8:(l+1)*8] = c.to_bytes(8, 'big')
+#     return bytes(L_out)
+
+
+# def X(k, a):
+#     return bytes([k[i] ^ a[i] for i in range(64)])
+
+def X(k: bytes, a: bytes) -> bytes:
+    return np.bitwise_xor(np.frombuffer(k, dtype=np.uint8),
+                          np.frombuffer(a, dtype=np.uint8)).tobytes()
+
+
+# Дальше идут K_array, E, GN, Hash и main (будет на следующем сообщении, чтобы не обрезать код!)
 
 def must_hex_decode(s):
     return binascii.unhexlify(s)
@@ -101,14 +248,28 @@ def K_array(K_1):
 
     for i in range(12):
         K_i = X(Result[i], C[i])
-        Result.append(L(P(S(K_i))))
+        #Result.append(L(P(S(K_i))))
+        Result.append(SPL_cached(K_i))
     return Result
 
+_K_ARRAY_CACHE = {}
+
+def K_array_cached(K_1):
+    if K_1 not in _K_ARRAY_CACHE:
+        _K_ARRAY_CACHE[K_1] = K_array(K_1)
+    return _K_ARRAY_CACHE[K_1]
+
+
 def E(K_1, m):
-    K = K_array(K_1)
-    result = L(P(S(X(K[0], m))))
+    #K = K_array(K_1)
+    K = K_array_cached(K_1)
+
+    # result = L(P(S(X(K[0], m))))
+    # for i in range(1, 12):
+    #     result = L(P(S(X(K[i], result))))
+    result = SPL_cached(X(K[0], m))
     for i in range(1, 12):
-        result = L(P(S(X(K[i], result))))
+        result = SPL_cached(X(K[i], result))
     result = X(K[12], result)
     return result
 
@@ -120,6 +281,7 @@ def GN(h, m, N):
     return result
 
 def Hash(message, mode):
+    #message = bytes.fromhex("fbe2e5f0eee3c820fbeafaebef20fffbf0e1e0f0f520e0ed20e8ece0ebe5f0f2f120fff0eeec20f120faf2fee5e2202ce8f6f3ede220e8e6eee1e8f0f2d1202ce8f0f2e5e220e5d1")
     IV = bytes([0x00] * 64) if mode == 512 else bytes([0x01] * 64)
     h = IV
     Sigma = bytearray(64)
