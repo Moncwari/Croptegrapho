@@ -14,7 +14,6 @@ int main() {
     uint64_t num2 = prng.next_int(256);
     std::cout << "Cycle 2: " << std::hex << num2 << std::endl;
 
-    prng.force_set_counter(3);
     uint64_t num3 = prng.next_int(256);
     std::cout << "Cycle 3: " << std::hex << num3 << std::endl;
 
