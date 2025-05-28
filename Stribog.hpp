@@ -1,9 +1,7 @@
-// stribog_official.cpp — Официальная референс-реализация GOST R 34.11-2012
-// (Streebog) Компиляция: g++ -std=c++17 -O3 stribog_official.cpp -o stribog
-// Запуск: ./stribog
-
 #pragma once
 
+
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <iomanip>
@@ -13,15 +11,6 @@
 
 using byte = uint8_t;
 
-std::string to_hex(const byte v[64]) {
-  std::ostringstream os;
-  os << std::hex << std::setfill('0');
-  for (int i = 0; i < 64; i++)
-    os << std::setw(2) << int(v[i]);
-  return os.str();
-}
-
-// === Точные константы из ГОСТ 34.11-2012 ===
 static const byte Sbox[256] = {
     252, 238, 221, 17,  207, 110, 49,  22,  251, 196, 250, 218, 35,  197, 4,
     77,  233, 119, 240, 219, 147, 46,  153, 186, 23,  54,  241, 187, 20,  205,
@@ -113,13 +102,11 @@ static const uint64_t Cc[12][8] = {
 inline void xor_blk(byte *out, const byte *a, const byte *b) {
   for (int i = 0; i < 64; ++i)
     out[i] = a[i] ^ b[i];
-  // std::cout << "Xor: " << to_hex(out) << '\n';
 }
 
 inline void sub_bytes(byte *s) {
   for (int i = 0; i < 64; ++i)
     s[i] = Sbox[s[i]];
-  // std::cout << "Sub: " << to_hex(s) << '\n';
 }
 
 inline void perm_p(byte *s) {
@@ -127,7 +114,6 @@ inline void perm_p(byte *s) {
   for (int i = 0; i < 64; ++i)
     t[i] = s[Tau[i]];
   memcpy(s, t, 64);
-  // std::cout << "Perm: " << to_hex(s) << '\n';
 }
 
 inline void lin_l(byte *s) {
@@ -282,20 +268,3 @@ std::string to_hex(const std::vector<byte> &v) {
     os << std::setw(2) << int(b);
   return os.str();
 }
-/*
-int main() {
-  std::vector<byte> m = {
-      0xfb, 0xe2, 0xe5, 0xf0, 0xee, 0xe3, 0xc8, 0x20, 0xfb, 0xea, 0xfa, 0xeb,
-      0xef, 0x20, 0xff, 0xfb, 0xf0, 0xe1, 0xe0, 0xf0, 0xf5, 0x20, 0xe0, 0xed,
-      0x20, 0xe8, 0xec, 0xe0, 0xeb, 0xe5, 0xf0, 0xf2, 0xf1, 0x20, 0xff, 0xf0,
-      0xee, 0xec, 0x20, 0xf1, 0x20, 0xfa, 0xf2, 0xfe, 0xe5, 0xe2, 0x20, 0x2c,
-      0xe8, 0xf6, 0xf3, 0xed, 0xe2, 0x20, 0xe8, 0xe6, 0xee, 0xe1, 0xe8, 0xf0,
-      0xf2, 0xd1, 0x20, 0x2c, 0xe8, 0xf0, 0xf2, 0xe5, 0xe2, 0x20, 0xe5, 0xd1};
-  auto d512 = stribog(m, false);
-  std::cout << to_hex(d512) << "\n\n";
-  std::cout
-      << "28fbc9bada033b1460642bdcddb90c3fb3e56c497ccd0f62b8a2ad4935e85f0376139"
-         "66de4ee00531ae60f3b5a47f8dae06915d5f2f194996fcabf2622e6881e";
-  return 0;
-}
-*/

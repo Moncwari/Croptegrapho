@@ -1,9 +1,11 @@
 #pragma once
 
-#include "Stribog.hpp"
-#include <cstdint>
 #include <vector>
+#include <cstdint>
+#include <string>
 #include <stdexcept>
+#include <iostream>
+#include "Stribog.hpp"
 
 std::vector<uint8_t> stribog(const std::vector<uint8_t> &message, bool output_256);
 
@@ -33,9 +35,6 @@ private:
 
 public:
     explicit StreebogPRNG(const std::vector<uint8_t> &seed) : counter_(1), buffer_offset_(0) {
-        if (seed.size() != 64) {
-            throw std::invalid_argument("Seed must be 512 bits (64 bytes)");
-        }
         h0_ = stribog(seed, true);
         refill_buffer();
     }
