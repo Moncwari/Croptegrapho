@@ -12,14 +12,14 @@
 std::vector<uint8_t> tranformSign(std::pair<BigInt, BigInt> signature) { // R, s -> 128, 64
     std::vector<uint8_t> Rvec = signature.first.toBytes();
     std::vector<uint8_t> svec = signature.second.toBytes();
-
-    while (Rvec.size() < 128) Rvec.push_back(0);
-    while (svec.size() < 64) svec.push_back(0);
+    std::cout << "Rvec size: " << Rvec.size() << " svec size: " << svec.size() << std::endl;
+    while (Rvec.size() < 128 / 8) Rvec.push_back(0);
+    while (svec.size() < 64 / 8) svec.push_back(0);
 
     std::vector<uint8_t> result(128 + 64, 0);
     std::copy(Rvec.begin(), Rvec.end(), result.begin()); // 128
     std::copy(svec.begin(), svec.end(), result.begin() + 128); // 64
-
+    std::cout << "result size: " << result.size() << std::endl;
     return result;
 }
 
@@ -42,14 +42,17 @@ int main() {
     std::vector<uint8_t> randomData3 = prng.next_bytes(200);
     std::vector<uint8_t> randomData4 = prng.next_bytes(200);
     std::vector<uint8_t> randomData5 = prng.next_bytes(200);
+    std::cout << "Random data completed\n";
 
     transaction1.insert(transaction1.begin(), nameBytes.begin(), nameBytes.end());
     transaction1.insert(transaction1.end(), randomData1.begin(), randomData1.end());
 
     transaction2.insert(transaction2.begin(), randomData2.begin(), randomData2.end());
-    transaction3.insert(transaction2.begin(), randomData2.begin(), randomData2.end());
-    transaction4.insert(transaction2.begin(), randomData2.begin(), randomData2.end());
-    transaction5.insert(transaction2.begin(), randomData2.begin(), randomData2.end());
+    transaction3.insert(transaction3.begin(), randomData3.begin(), randomData3.end());
+    transaction4.insert(transaction4.begin(), randomData4.begin(), randomData4.end());
+    transaction5.insert(transaction5.begin(), randomData5.begin(), randomData5.end());
+    
+    std::cout << "Transactions completed\n";
 
     std::pair<BigInt, BigInt> keys1 = generateKeys("seed1"); // (x, r)
     std::pair<BigInt, BigInt> keys2 = generateKeys("seed2");
@@ -57,23 +60,42 @@ int main() {
     std::pair<BigInt, BigInt> keys4 = generateKeys("seed4");
     std::pair<BigInt, BigInt> keys5 = generateKeys("seed5");
 
-    BigInt P1 = g ^ keys1.first % p;
-    BigInt P2 = g ^ keys2.first % p;
-    BigInt P3 = g ^ keys3.first % p;
-    BigInt P4 = g ^ keys4.first % p;
-    BigInt P5 = g ^ keys5.first % p;
+    std::cout << "Keys completed\n";
+
+    BigInt P1 = g.modExp(keys1.second, p);
+    BigInt P2 = g.modExp(keys2.second, p);
+    BigInt P3 = g.modExp(keys3.second, p);
+    BigInt P4 = g.modExp(keys4.second, p);
+    BigInt P5 = g.modExp(keys5.second, p);
+
+    std::cout << "Public keys completed\n";
 
     std::pair<BigInt, BigInt> signature1 = signMessage(q, keys1.second, P1, keys1.first, g, transaction1);
     std::pair<BigInt, BigInt> signature2 = signMessage(q, keys2.second, P2, keys2.first, g, transaction2);
     std::pair<BigInt, BigInt> signature3 = signMessage(q, keys3.second, P3, keys3.first, g, transaction3);
     std::pair<BigInt, BigInt> signature4 = signMessage(q, keys4.second, P4, keys4.first, g, transaction4);
     std::pair<BigInt, BigInt> signature5 = signMessage(q, keys5.second, P5, keys5.first, g, transaction5);
-
-    transaction1.insert(transaction1.end(), tranformSign(signature1).begin(), tranformSign(signature1).end());
-    transaction2.insert(transaction2.end(), tranformSign(signature2).begin(), tranformSign(signature2).end());
-    transaction3.insert(transaction3.end(), tranformSign(signature3).begin(), tranformSign(signature3).end());
-    transaction4.insert(transaction4.end(), tranformSign(signature4).begin(), tranformSign(signature4).end());
-    transaction5.insert(transaction5.end(), tranformSign(signature5).begin(), tranformSign(signature5).end());
+    
+    std::cout << "Signatures completed\n";
+    std::vector<uint8_t> transSign = tranformSign(signature1);
+    transaction1.reserve(transaction1.size() + transSign.size());
+    transaction1.insert(transaction1.end(), transSign.begin(), transSign.end());
+    std::cout << "transaction1 size: " << transaction1.size() << std::endl;
+    transSign = tranformSign(signature2);
+    transaction1.reserve(transaction2.size() + transSign.size());
+    transaction2.insert(transaction2.end(), transSign.begin(), transSign.end());
+    std::cout << "transaction2 size: " << transaction2.size() << std::endl;
+    transSign = tranformSign(signature3);
+    transaction1.reserve(transaction3.size() + transSign.size());
+    transaction3.insert(transaction3.end(), transSign.begin(), transSign.end());
+    transSign = tranformSign(signature4);
+    transaction1.reserve(transaction4.size() + transSign.size());
+    transaction4.insert(transaction4.end(), transSign.begin(), transSign.end());
+    transSign = tranformSign(signature5);
+    transaction1.reserve(transaction5.size() + transSign.size());
+    transaction5.insert(transaction5.end(), transSign.begin(), transSign.end());
+    
+    std::cout << "Transactions completed\n";
 
     std::vector<std::vector<uint8_t>> dataForTree = {transaction1, transaction2, transaction3, transaction4, transaction5};
 
@@ -92,11 +114,16 @@ int main() {
     dataForHash.insert(dataForHash.end(), root.begin(), root.end());
     dataForHash.insert(dataForHash.end(), timestamp.begin(), timestamp.end());
     
+    std::cout << "Data for hash completed\n";
+    std::vector<uint8_t> dataForHashtry = dataForHash;
+    
+    dataForHashtry.reserve(dataForHashtry.size() + 8);
     for (BigInt nonce = 0; nonce < 1000000000; nonce = nonce + 1) {
-        if (nonce % 1 == 0) std::cout << "Nonce: " << nonce << std::endl;
-        std::vector<uint8_t> dataForHashtry = dataForHash;
-        dataForHashtry.insert(dataForHashtry.end(), nonce.toBytes().begin(), nonce.toBytes().end());
-        std::vector<uint8_t> hash = stribog(dataForHash, true);
+        std::vector<uint8_t> nonceBytes = nonce.toBytes();
+        if (nonce % 10 == 0) std::cout << "Nonce: " << nonce << std::endl;
+        memcpy(dataForHashtry.data() + dataForHashtry.size() - 8, nonceBytes.data(), nonceBytes.size());
+        std::vector<uint8_t> hash = stribog(dataForHashtry, true);
+        //std::cout << "Hash: " << to_hex(hash) << std::endl;
         if (hash[0] & 0xf8 == 0x00) {
             std::cout << "Block found! Nonce: " << nonce << std::endl;
             std::cout << "Hash: " << std::hex << std::setfill('0') << std::setw(2 * hash.size()) << std::string(hash.begin(), hash.end()) << std::endl;

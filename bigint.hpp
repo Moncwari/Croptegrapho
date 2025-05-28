@@ -246,6 +246,7 @@ public:
     return result;
   }
 
+
   std::vector<uint8_t> toBytes() const {
     std::vector<uint64_t> digits_ = digits;
     std::vector<uint8_t> output;

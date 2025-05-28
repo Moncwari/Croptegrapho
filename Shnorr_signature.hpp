@@ -54,7 +54,7 @@ std::pair<BigInt, BigInt> generateKeys(std::string seed = "Lebedeva") {
 }
 
 std::pair<BigInt, BigInt> signMessage(BigInt q, BigInt r, BigInt P, BigInt x, BigInt g, std::vector<uint8_t> message) {
-    BigInt R = g^r % p;
+    BigInt R = g.modExp(r, p);
     std::vector<uint8_t> Rvec = R.toBytes();
     std::vector<uint8_t> Pvec = P.toBytes();
     std::vector<uint8_t> eBase;
@@ -63,7 +63,6 @@ std::pair<BigInt, BigInt> signMessage(BigInt q, BigInt r, BigInt P, BigInt x, Bi
     eBase.insert(eBase.end(), Rvec.begin(), Rvec.end());
     eBase.insert(eBase.end(), Pvec.begin(), Pvec.end());
     eBase.insert(eBase.end(), message.begin(), message.end());
-    
     BigInt e = BigInt::BytesToBigInt(eBase);
 
     BigInt s = (r + e * x) % q;
