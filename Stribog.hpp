@@ -9,9 +9,9 @@
 #include <sstream>
 #include <vector>
 
-using byte = uint8_t;
+using _byte = uint8_t;
 
-static const byte Sbox[256] = {
+static const _byte Sbox[256] = {
     252, 238, 221, 17,  207, 110, 49,  22,  251, 196, 250, 218, 35,  197, 4,
     77,  233, 119, 240, 219, 147, 46,  153, 186, 23,  54,  241, 187, 20,  205,
     95,  193, 249, 24,  101, 90,  226, 92,  239, 33,  129, 28,  60,  66,  139,
@@ -31,7 +31,7 @@ static const byte Sbox[256] = {
     89,  166, 116, 210, 230, 244, 180, 192, 209, 102, 175, 194, 57,  75,  99,
     182};
 
-static const byte Tau[64] = {0,  8,  16, 24, 32, 40, 48, 56, 1,  9,  17, 25, 33,
+static const _byte Tau[64] = {0,  8,  16, 24, 32, 40, 48, 56, 1,  9,  17, 25, 33,
                              41, 49, 57, 2,  10, 18, 26, 34, 42, 50, 58, 3,  11,
                              19, 27, 35, 43, 51, 59, 4,  12, 20, 28, 36, 44, 52,
                              60, 5,  13, 21, 29, 37, 45, 53, 61, 6,  14, 22, 30,
@@ -99,24 +99,24 @@ static const uint64_t Cc[12][8] = {
      0xf82012d430219f9bULL, 0x5d80ef9d1891cc86ULL, 0xe71da4aa88e12852ULL,
      0xfaf417d5d9b21b99ULL, 0x48bc924af11bd720ULL}};
 
-inline void xor_blk(byte *out, const byte *a, const byte *b) {
+inline void xor_blk(_byte *out, const _byte *a, const _byte *b) {
   for (int i = 0; i < 64; ++i)
     out[i] = a[i] ^ b[i];
 }
 
-inline void sub_bytes(byte *s) {
+inline void sub__bytes(_byte *s) {
   for (int i = 0; i < 64; ++i)
     s[i] = Sbox[s[i]];
 }
 
-inline void perm_p(byte *s) {
-  byte t[64];
+inline void perm_p(_byte *s) {
+  _byte t[64];
   for (int i = 0; i < 64; ++i)
     t[i] = s[Tau[i]];
   memcpy(s, t, 64);
 }
 
-inline void lin_l(byte *s) {
+inline void lin_l(_byte *s) {
   for (int i = 0; i < 8; ++i) {
     uint64_t v = 0, r = 0;
 
@@ -132,8 +132,8 @@ inline void lin_l(byte *s) {
   }
 }
 
-void LPS(byte *s) {
-  sub_bytes(s);
+void LPS(_byte *s) {
+  sub__bytes(s);
   perm_p(s);
   lin_l(s);
 }
@@ -145,8 +145,8 @@ void LPS(byte *s) {
  * @param N The hash value from the previous block.
  * @param m The block of data to be processed.
  */
-void gN(byte h[64], const byte N[64], const byte m[64]) {
-  byte K[64], X[64];
+void gN(_byte h[64], const _byte N[64], const _byte m[64]) {
+  _byte K[64], X[64];
 
   // XOR current hash value with the previous block hash value
   xor_blk(K, h, N);
@@ -162,7 +162,7 @@ void gN(byte h[64], const byte N[64], const byte m[64]) {
     LPS(X);
 
     // Calculate round constant Ci and XOR with K
-    byte Cb[64];
+    _byte Cb[64];
     for (int i = 0; i < 8; ++i) {
       for (int j = 0; j < 8; ++j) {
         Cb[i * 8 + j] = uint8_t(Cc[r][i] >> ((7 - j) * 8));
@@ -186,17 +186,17 @@ void gN(byte h[64], const byte N[64], const byte m[64]) {
  * @param msg The input message to hash.
  * @param is256 Whether to return a 256-bit hash (true) or a 512-bit hash
  * (false).
- * @return A vector of bytes representing the hash of the input message.
+ * @return A vector of _bytes representing the hash of the input message.
  */
-std::vector<byte> stribog(const std::vector<byte> &msg, bool is256) {
+std::vector<_byte> stribog(const std::vector<_byte> &msg, bool is256) {
   // Initialize the hash value, N, and Sigma
-  byte h[64] = {}, N[64] = {}, Sigma[64] = {}, buf[64];
+  _byte h[64] = {}, N[64] = {}, Sigma[64] = {}, buf[64];
   if (is256)
-    h[0] = 1; // 256-bit hash has first byte set to 1
+    h[0] = 1; // 256-bit hash has first _byte set to 1
 
-  // Process the input message in chunks of 64 bytes
+  // Process the input message in chunks of 64 _bytes
   size_t rem = msg.size();
-  size_t off = rem - 64;
+  size_t off = rem % 64;
   const uint64_t original_length =
       msg.size() * 8; // Length of the input message in bits
 
@@ -224,7 +224,7 @@ std::vector<byte> stribog(const std::vector<byte> &msg, bool is256) {
     rem -= 64;
   }
 
-  // Pad the remaining bytes with zeros and add a "1" bit
+  // Pad the remaining _bytes with zeros and add a "1" bit
   memset(buf, 0, 64);
   if (rem)
     memcpy(buf + (64 - rem), &msg[0], rem);
@@ -251,17 +251,17 @@ std::vector<byte> stribog(const std::vector<byte> &msg, bool is256) {
     c = x >> 8;
   }
   // Finalize the hash: two final blocks with N=0
-  byte zero[64] = {0};
+  _byte zero[64] = {0};
   gN(h, zero, N);     // Block with the length of the input message
   gN(h, zero, Sigma); // Block with the sum Sigma
 
   size_t out_size = is256 ? 32 : 64;
-  std::vector<byte> digest(out_size);
+  std::vector<_byte> digest(out_size);
   memcpy(digest.data(), h + (is256 ? 32 : 0), out_size);
   return digest;
 }
 
-std::string to_hex(const std::vector<byte> &v) {
+std::string to_hex(const std::vector<_byte> &v) {
   std::ostringstream os;
   os << std::hex << std::setfill('0');
   for (auto b : v)

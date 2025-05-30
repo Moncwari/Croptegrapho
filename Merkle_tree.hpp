@@ -13,41 +13,58 @@ class MerkleTree {
 private:
     vector<vector<vector<uint8_t>>> levels;
     
-    vector<uint8_t> combineHashes(const vector<uint8_t>& left, const vector<uint8_t>& right) {
-        vector<uint8_t> combined;
-        combined.reserve(left.size() + right.size());
-        combined.insert(combined.end(), left.begin(), left.end());
-        combined.insert(combined.end(), right.begin(), right.end());
+    vector<uint8_t> combineHashes(vector<uint8_t> left, vector<uint8_t> right) {
+        vector<uint8_t> combined = std::move(left);
+        //std::cout << "left hash: " << to_hex(combined) << std::endl;
+        //std::cout << "right hash: " << to_hex(right) << std::endl;
+        combined.reserve(combined.size() + right.size());
+        combined.insert(combined.end(), 
+                        std::make_move_iterator(right.begin()), 
+                        std::make_move_iterator(right.end()));
+        
+        //std::cout << "combined hash: " << to_hex(stribog(combined, true)) << std::endl;
+        
         return stribog(combined, true);
     }
 
 public:
     explicit MerkleTree(const vector<vector<uint8_t>>& data) {
-        if (data.empty()) {
-            throw invalid_argument("Input data cannot be empty");
-        }
+    if (data.empty()) throw invalid_argument("Input data cannot be empty");
 
-        vector<vector<uint8_t>> leaves;
-        for (const auto& block : data) {
-            leaves.push_back(stribog(block, true));
-        }
+    vector<vector<uint8_t>> leaves;
+    leaves.reserve(data.size());
+    
+    for (const auto& block : data) {
+        leaves.push_back(stribog(block, true));
+    }
+    
 
-        vector<vector<uint8_t>> currentLevel = leaves;
-        levels.push_back(currentLevel);
+        levels.push_back(leaves);
+        vector<vector<uint8_t>> currentLevel = std::move(leaves);
 
         while (currentLevel.size() > 1) {
             vector<vector<uint8_t>> nextLevel;
+            nextLevel.reserve((currentLevel.size() + 1) / 2);
             
-            for (size_t i = 0; i < currentLevel.size(); i += 2) {
+            for (size_t i = 0; i < currentLevel.size(); ) {
                 if (i + 1 >= currentLevel.size()) {
-                    nextLevel.push_back(combineHashes(currentLevel[i], currentLevel[i]));
+                    vector<uint8_t> copy = currentLevel[i];
+                    nextLevel.push_back(
+                        combineHashes(std::move(currentLevel[i]), 
+                                      std::move(copy))
+                    );
+                    i += 1;
                 } else {
-                    nextLevel.push_back(combineHashes(currentLevel[i], currentLevel[i+1]));
+                    nextLevel.push_back(
+                        combineHashes(std::move(currentLevel[i]), 
+                                      std::move(currentLevel[i+1]))
+                    );
+                    i += 2;
                 }
             }
             
-            currentLevel = nextLevel;
-            levels.push_back(currentLevel);
+            levels.push_back(nextLevel);
+            currentLevel = std::move(nextLevel);
         }
     }
 

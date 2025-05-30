@@ -38,7 +38,7 @@ const BigInt g =  BigInt::bitsToBigInt(
     hexToBitset("9E96031500C8774A869582D4AFDE2127AFAD2538B4B6270A6F7C8837B50D50F206755984A49E509304D648BE2AB5AAB18EBE2CD46AC3D8495B142AA6CE23E21C")
 );
 
-BigInt generateRandomGroupNumber(BigInt q, std::string seed = "Lebedeva") {
+BigInt generateRandomGroupNumber(BigInt q, std::string seed) {
     StreebogPRNG prng(std::vector<uint8_t>(seed.begin(), seed.end()));
     std::vector<uint8_t> init = prng.next_bytes(63);
 
@@ -47,9 +47,9 @@ BigInt generateRandomGroupNumber(BigInt q, std::string seed = "Lebedeva") {
     return BigInt::BytesToBigInt(result);
 }
 
-std::pair<BigInt, BigInt> generateKeys(std::string seed = "Lebedeva") {
-    BigInt x = generateRandomGroupNumber(q);
-    BigInt r = generateRandomGroupNumber(q);
+std::pair<BigInt, BigInt> generateKeys(std::string seed) {
+    BigInt x = generateRandomGroupNumber(q, seed);
+    BigInt r = generateRandomGroupNumber(q, seed + "1");
     return std::make_pair(x, r);
 }
 
