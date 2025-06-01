@@ -279,7 +279,7 @@ Example_data = [round(i, 2) for i in noisy_vector]  #Data after padding, encodin
 #Errors making
 Example_data[2] *= -1
 Example_data[5] *= -1
-#Example_data[7] *= -1
+Example_data[7] *= -1
 #Example_data[10] *= -1
 
 print("BPSK data: ")
@@ -313,10 +313,39 @@ while index < len(all_trees):
 
 sorted_answer = sorted(answer, key=lambda x: x[0])
 
-a = sorted_answer[0][1]
+best = sorted_answer[0][1]
 
-print("Answer of decoder: ")
-print(*(a[i] for i in range(len(a))), sep="\t")
-print("Input data: ")
-print(*full_input, sep="\t")
+
+# Определение цветовых кодов ANSI
+GREEN = "\033[92m"
+RED = "\033[91m"
+RESET = "\033[0m"
+
+# Вывод строки "Answer of decoder: " с раскраской элементов
+print("Answer of decoder: ", end="\n")
+for i in range(len(best)):
+    if int(best[i]) == full_input[i]:
+        colored_element = GREEN + str(best[i]) + RESET
+    else:
+        colored_element = RED + str(best[i]) + RESET
+    # Добавление табуляции, кроме последнего элемента
+    if i < len(best) - 1:
+        print(colored_element, end="\t")
+    else:
+        print(colored_element)
+
+# Вывод строки "Input data: " с раскраской элементов
+print("Input data: ", end="\n")
+for i in range(len(full_input)):
+    if int(best[i]) == full_input[i]:
+        colored_element = GREEN + str(full_input[i]) + RESET
+    else:
+        colored_element = RED + str(full_input[i]) + RESET
+    
+    # Добавление табуляции, кроме последнего элемента
+    if i < len(full_input) - 1:
+        print(colored_element, end="\t")
+    else:
+        print(colored_element)
+
 print("Metrics: ", round(sorted_answer[0][0], 2))
