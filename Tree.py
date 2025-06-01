@@ -2,15 +2,28 @@ import math
 import numpy as np
 import random
 import copy
+import collections
 
-
-# etalon = [0, 0, 0, 0, 0, 0] + data[0:2] + [0, 0] + data[2:]
+PATH_list = ["L", "LL", "LLL", "LLLL",
+        "LLLR", "LLL", "LLR", "LLRL", 
+        "LLRR", "LLR", "LL", "LR",
+        "LRL", "LRLL", "LRLR", "LRL", 
+        "LRR", "LRRL", "LRRR", "LRR",
+        "LR", "L", "R", "RL", 
+        "RLL", "RLLL", "RLLR", "RLL",
+        "RLR", "RLRL", "RLRR", "RLR", 
+        "RL", "RR", "RRL", "RRLL",
+        "RRLR", "RRL", "RRR", "RRRL", 
+        "RRRR", "RRR", "RR", "R",
+        "Finish"]
 def concatinate(x: list, y: list):
     tmp = [x[i] ^ y[i] for i in range(len(x))]
     for i in y:
         tmp.append(i)
     return tmp
 
+def sign(x):
+    return 1 if x >= 0 else -1
 
 def L_func(x, y):
     return (x * y) // abs(x * y) * min(abs(x), abs(y))
@@ -30,6 +43,7 @@ def error(m: list, number=2):
 
 class Tree:
     dict_nodes = {}
+    nodes = collections.deque(PATH_list)
     cur_node = ""
     proceed = set()
     proceed.add("ALL")
@@ -46,7 +60,7 @@ class Tree:
                         self.dict_nodes[self.cur_node[:-1]][0][0],
                         self.dict_nodes[self.cur_node[:-1]][0][1],
                     ),
-                    "should": 0,
+                    "should": [0],
                 }
                 self.proceed.add(self.cur_node)
             else:
@@ -54,8 +68,8 @@ class Tree:
                     self.dict_nodes[self.cur_node[:-1]][0][0],
                     self.dict_nodes[self.cur_node[:-1]][0][1],
                 )
-                leaf1 = {"pred": predicted, "should": 0}
-                leaf2 = {"pred": predicted, "should": 1}
+                leaf1 = {"pred": predicted, "should": [0]}
+                leaf2 = {"pred": predicted, "should": [1]}
                 self.dict_nodes[self.cur_node] = leaf1
                 self.proceed.add(self.cur_node)
                 copied = copy.deepcopy(self)
@@ -63,22 +77,31 @@ class Tree:
                 all_trees.append(copied)
 
         else:
-            node = self.cur_node[:-1]
-            if node == "":
-                node = "ALL"
-            tmp = self.dict_nodes[node][0]
-            length = len(tmp)
-            Help_Result = []
-            for i in range(0, length // 2):
-                Help_Result.append(L_func(tmp[i], tmp[i + length // 2]))
-            self.dict_nodes[self.cur_node] = (Help_Result, [])
+            if self.cur_node not in self.dict_nodes.keys():
+                node = self.cur_node[:-1]
+                if node == "":
+                    node = "ALL"
+                tmp = self.dict_nodes[node][0]
+                length = len(tmp)
+                Help_Result = []
+                for i in range(0, length // 2):
+                    Help_Result.append(L_func(tmp[i], tmp[i + length // 2]))
+                self.dict_nodes[self.cur_node] = (Help_Result, [])
+            else:
+                self.dict_nodes[self.cur_node] = (
+                    self.dict_nodes[self.cur_node][0],
+                    concatinate(
+                        self.dict_nodes[self.cur_node + "L"][1 if len(self.cur_node) != 3 else "should"],
+                        self.dict_nodes[self.cur_node + "R"][1 if len(self.cur_node) != 3 else "should"]
+                    ),
+                )
 
         return self.cur_node
 
     def Tree_level_R(self):
         if len(self.cur_node) == 4:
             node = self.cur_node[:-1] + "L"
-            b = self.dict_nodes[node]["should"]
+            b = self.dict_nodes[node]["should"][0]
             if self.cur_node in SAFE_BITS:
                 self.dict_nodes[self.cur_node] = {
                     "pred": R_func(
@@ -86,12 +109,12 @@ class Tree:
                         self.dict_nodes[self.cur_node[:-1]][0][1],
                         b,
                     ),
-                    "should": 0,
+                    "should": [0],
                 }
                 self.proceed.add(self.cur_node)
                 node = node[:-1]
-                self.dict_nodes[node][1].append(self.dict_nodes[self.cur_node + "L"]["should"])
-                self.dict_nodes[node][1].append(self.dict_nodes[self.cur_node + "R"]["should"])
+                self.dict_nodes[node][1].append(self.dict_nodes[self.cur_node[:-1] + "L"]["should"])
+                self.dict_nodes[node][1].append(self.dict_nodes[self.cur_node[:-1] + "R"]["should"])
                 #self.cur_node = node
                 return self.cur_node
             else:
@@ -101,50 +124,46 @@ class Tree:
                     b,
                 )
                 node = node[:-1]
-                leaf1 = {"pred": predicted, "should": 0}
-                leaf2 = {"pred": predicted, "should": 1}
+                leaf1 = {"pred": predicted, "should": [0]}
+                leaf2 = {"pred": predicted, "should": [1]}
                 self.dict_nodes[self.cur_node] = leaf1
                 self.proceed.add(self.cur_node)
-                self.dict_nodes[node][1].append(self.dict_nodes[self.cur_node + "L"]["should"])
-                self.dict_nodes[node][1].append(0)
                 copied = copy.deepcopy(self)
                 copied.dict_nodes[self.cur_node] = leaf2
-                copied.dict_nodes[node][1].append(copied.dict_nodes[copied.cur_node + "L"]["should"])
-                copied.dict_nodes[node][1].append(1)
                 all_trees.append(copied)
-                #self.cur_node = node
                 return self.cur_node
 
         else:
-            node = self.cur_node[:-1]
-            if node == "":
-                node = "ALL"
-            tmp = self.dict_nodes[node][0]
-            length = len(tmp)
-            Help_Result = []
-            for i in range(0, length // 2):
-                Help_Result.append(R_func(tmp[i], tmp[i + length // 2], self.dict_nodes[node][1][i]))
-            self.dict_nodes[self.cur_node] = (Help_Result, [])
-            return self.cur_node
+            if self.cur_node not in self.dict_nodes.keys():
+                node = self.cur_node[:-1]
+                if node == "":
+                    node = "ALL"
+                tmp = self.dict_nodes[node][0]
+                length = len(tmp)
+                Help_Result = []
+                for i in range(0, length // 2):
+                    Help_Result.append(R_func(tmp[i], tmp[i + length // 2], self.dict_nodes[node + "L" if node != "ALL" else "L"][1][i]))
+                self.dict_nodes[self.cur_node] = (Help_Result, [])
+                return self.cur_node
+            else:
+                self.dict_nodes[self.cur_node] = (
+                    self.dict_nodes[self.cur_node][0],
+                    concatinate(
+                        self.dict_nodes[self.cur_node + "L"][1 if len(self.cur_node) != 3 else "should"],
+                        self.dict_nodes[self.cur_node + "R"][1 if len(self.cur_node) != 3 else "should"]
+                    ),
+                )
+                return self.cur_node
         
 
+def calculate_metrics(tree):
+    return 0, 1, 2
 
 
-PATH = ["L", "LL", "LLL", "LLLL",
-        "LLLR", "LLL", "LLR", "LLRL", 
-        "LLRR", "LLR", "LL", "LR",
-        "LRL", "LRLL", "LRLR", "LRL", 
-        "LRR", "LRRL", "LRRR", "LRR",
-        "LR", "L", "R", "RL", 
-        "RLL", "RLLL", "RLLR", "RLL",
-        "RLR", "RLRL", "RLRR", "RLR", 
-        "RL", "RR", "RRL", "RRLL",
-        "RRLR", "RRL", "RRR", "RRRL", 
-        "RRRR", "RRR", "RR", "R",]
+
 
 all_trees = []
 
-# 0 1 2 3 4 5 6 7 || 8 9 10 11 12 13 14 15
 Example_data = [
     0.6,
     0.7,
@@ -167,15 +186,33 @@ N = 16
 K = 8
 L = 4
 
+
+
 SAFE_BITS = ["LLLL", "LLLR", "LLRL", "LLRR", "LRLL", "LRLR", "RLLL", "RLLR"]
 
+answer = []
 
 Tree1 = Tree(Example_data)
 Tree1.cur_node = ""
 all_trees.append(Tree1)
+index = 0
+while index < len(all_trees):
+    curr_Tree = all_trees[index]
+    
+    curr_Tree.cur_node = curr_Tree.nodes.popleft()
+    node = curr_Tree.cur_node
+    print(index, node)
+    if node == "Finish":
+        metrics, code, tree = calculate_metrics(curr_Tree)
+        answer.append((metrics, code, tree))
+        index += 1
+        print(index, len(all_trees))
+    
+    else:
+        if node[-1] == "L":
+            node1 = curr_Tree.cur_node = curr_Tree.Tree_level_L()
+        else:
+            node1 = curr_Tree.cur_node = curr_Tree.Tree_level_R()
+        
 
-
-d = all_trees[0].dict_nodes
-
-for i in d.keys():
-    print(i, ":", d[i])
+print(*answer, sep="\n")
