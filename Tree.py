@@ -85,11 +85,6 @@ def BPSK(m: list):
     a = [1 if x == 0 else -1 for x in m]
     return a
 
-
-def error(m: list, number=2):
-    pass
-
-
 def add_lists_elementwise(list1, list2):
     if len(list1) != len(list2):
         print("Ошибка: Списки должны быть одинаковой длины для поэлементного сложения.")
@@ -268,28 +263,32 @@ def calculate_metrics(Tree: Tree):
 
 all_trees = []
 
+#Our 8 bits of data before all gambling
 input_data = [0, 1, 0, 1, 0, 1, 0, 1]
+full_input = [0] * 6 + input_data[:2] + [0, 0] + input_data[2:]
 encoded = np.array(BPSK(from_8_to_16(input_data)))
 
-# Параметры шума
-mu = 0.0  # Среднее значение шума
-sigma = 0.2  # Стандартное отклонение (сила шума)
+#noise parametres
+mu = 0.0 
+sigma = 0.2 
 noise = np.random.normal(mu, sigma, 16)
 noisy_vector = encoded + noise
 
+Example_data = [round(i, 2) for i in noisy_vector]  #Data after padding, encoding, BPSK and noise
 
-Example_data = [i for i in noisy_vector]
-Example_data = [round(i, 2) for i in Example_data]
-
+#Errors making
 Example_data[2] *= -1
 Example_data[5] *= -1
-Example_data[7] *= -1
-Example_data[10] *= -1
+#Example_data[7] *= -1
+#Example_data[10] *= -1
 
-for i in Example_data:
-    print(round(i, 2), end="\t")
-print()
+print("BPSK data: ")
 print(*encoded, sep="\t")
+print("Our data after adding noise: ")
+for i in Example_data:
+    print(i, end="\t")
+print()
+
 answer = []
 
 Tree1 = Tree(Example_data)
@@ -313,7 +312,11 @@ while index < len(all_trees):
 
 
 sorted_answer = sorted(answer, key=lambda x: x[0])
-print(round(sorted_answer[0][0], 2))
+
 a = sorted_answer[0][1]
+
+print("Answer of decoder: ")
 print(*(a[i] for i in range(len(a))), sep="\t")
-print(*([0] * 6 + input_data[:2] + [0] * 2 + input_data[2:]), sep="\t")
+print("Input data: ")
+print(*full_input, sep="\t")
+print("Metrics: ", round(sorted_answer[0][0], 2))
