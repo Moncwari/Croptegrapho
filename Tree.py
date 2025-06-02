@@ -85,6 +85,7 @@ def BPSK(m: list):
     a = [1 if x == 0 else -1 for x in m]
     return a
 
+
 def add_lists_elementwise(list1, list2):
     if len(list1) != len(list2):
         print("Ошибка: Списки должны быть одинаковой длины для поэлементного сложения.")
@@ -122,6 +123,7 @@ class Tree:
         self.nodes = collections.deque(PATH_list)
         self.proceed = set()
         self.proceed.add("ALL")
+        self.current_metrics = 0
 
     def Tree_level_L(self):
         if len(self.cur_node) == 4:
@@ -244,6 +246,41 @@ class Tree:
                 )
                 return self.cur_node
 
+    def Update_metrics(self):
+        decode = ""
+        Error = 0
+        Leaf = [
+            "LLLL",
+            "LLLR",
+            "LLRL",
+            "LLRR",
+            "LRLL",
+            "LRLR",
+            "LRRL",
+            "LRRR",
+            "RLLL",
+            "RLLR",
+            "RLRL",
+            "RLRR",
+            "RRLL",
+            "RRLR",
+            "RRRL",
+            "RRRR",
+        ]
+        All_nodes = set(self.dict_nodes.keys())
+        for node in Leaf:
+            if node in All_nodes:
+                decode += str(self.dict_nodes[node]["should"][0])
+                Error += (
+                    abs(self.dict_nodes[node]["pred"])
+                    if sign(self.dict_nodes[node]["pred"])
+                    != self.dict_nodes[node]["should"][0]
+                    else 0
+                )
+            else:
+                self.current_metrics = Error
+                break
+
 
 def calculate_metrics(Tree: Tree):
     decode = ""
@@ -263,24 +300,26 @@ def calculate_metrics(Tree: Tree):
 
 all_trees = []
 
-#Our 8 bits of data before all gambling
+# Our 8 bits of data before all gambling
 input_data = [0, 1, 0, 1, 0, 1, 0, 1]
 full_input = [0] * 6 + input_data[:2] + [0, 0] + input_data[2:]
 encoded = np.array(BPSK(from_8_to_16(input_data)))
 
-#noise parametres
-mu = 0.0 
-sigma = 0.2 
+# noise parametres
+mu = 0.0
+sigma = 0.2
 noise = np.random.normal(mu, sigma, 16)
 noisy_vector = encoded + noise
 
-Example_data = [round(i, 2) for i in noisy_vector]  #Data after padding, encoding, BPSK and noise
+Example_data = [
+    round(i, 2) for i in noisy_vector
+]  # Data after padding, encoding, BPSK and noise
 
-#Errors making
+# Errors making
 Example_data[2] *= -1
 Example_data[5] *= -1
 Example_data[7] *= -1
-#Example_data[10] *= -1
+# Example_data[10] *= -1
 
 print("BPSK data: ")
 print(*encoded, sep="\t")
@@ -295,26 +334,33 @@ Tree1 = Tree(Example_data)
 Tree1.cur_node = ""
 all_trees.append(Tree1)
 index = 0
-while index < len(all_trees):
-    curr_Tree = all_trees[index]
+while True:
+    curr_Tree = max(all_trees, key=lambda x: len(x.nodes))
+    #curr_Tree = all_trees[index]
     curr_Tree.cur_node = curr_Tree.nodes.popleft()
     node = curr_Tree.cur_node
     if node == "Finish":
         metrics, code, tree = calculate_metrics(curr_Tree)
         answer.append((metrics, code, tree))
-        index += 1
+        all_trees.remove(curr_Tree)
 
     else:
         if node[-1] == "L":
             node1 = curr_Tree.cur_node = curr_Tree.Tree_level_L()
         else:
             node1 = curr_Tree.cur_node = curr_Tree.Tree_level_R()
+    curr_Tree.Update_metrics()
+    all_sorted = sorted(all_trees, key=lambda x: x.current_metrics)
+    all_trees = all_sorted[:L]
+    if len(all_trees) == 0:
+        break
 
 
 sorted_answer = sorted(answer, key=lambda x: x[0])
 
 best = sorted_answer[0][1]
 
+print(len(answer), len(all_trees))
 
 # Определение цветовых кодов ANSI
 GREEN = "\033[92m"
@@ -341,7 +387,7 @@ for i in range(len(full_input)):
         colored_element = GREEN + str(full_input[i]) + RESET
     else:
         colored_element = RED + str(full_input[i]) + RESET
-    
+
     # Добавление табуляции, кроме последнего элемента
     if i < len(full_input) - 1:
         print(colored_element, end="\t")
